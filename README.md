@@ -23,7 +23,11 @@ Included:
 
 ## Formatters ##
 
-* `NewTemplateFormatter`: Formats the message based on a template string. Syntax is similar to Python's (and possibly other) string formatting language. Tokens are as follows: `{token}`. 
+* `NewTemplateFormatter`: Formats the message based on a template string. See below for syntax.
+
+
+
+## Example ##
 
 ```
 log4go.BasicConfig(log4go.BasicConfigOpts{
@@ -42,16 +46,29 @@ rootLog.Info("Hello, log4go!")
 myLog := log4go.GetLogger("mylog")
 myLog.Error("No, not really")
 // Or by another logger:
-sameAsMyLog := rootLog.GetLogger("mylog")
+myLogAlso := rootLog.GetLogger("mylog")
 
-myLog.Warning("this is dangerously awesome!")
-
-
+myLog.Info("printf-formatting works, %s", "of course")
+myLogAlso.Warning("this is dangerously awesome!")
 ```
 
-Will output:
+The above will output:
 ```
 2016-09-23 root      INFO     Hello, log4go!
 2016-09-23 mylog     ERROR    No, not really
 2016-09-23 mylog     WARNING  this is dangerously awesome!
 ```
+
+## TemplateFormatter ##
+
+Template syntax is similar to the string formatting language in Python (and possibly others).
+
+Basic token syntax is: `{token}`
+It might include an alignment and field width as well: `{token<width}`, e.g. `{name>20}` (right-aligned logger name).
+
+Supported tokens are:
+
+* name - Logger's full name.
+* time - Time stamp in [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) format, but without time zone.
+* level - Name of log message's level.
+* message - The log message itself.
