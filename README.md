@@ -16,7 +16,7 @@ The `Logger` might have a `Level` set, to limit the logging to that level and ab
 
 The handler writes a `[]byte` object the best way it knows.
 
-Included:
+Included handlers:
 
 * `NewStreamHandler`
 * `NewFileHandler`
@@ -26,6 +26,8 @@ Each handler has a formatter associated to it.
 ## Formatters ##
 
 The formatter formats a log record into a `[]byte` object.
+
+Included formatters:
 
 * `NewTemplateFormatter`: Formats the message based on a template string. See below for syntax.
 
