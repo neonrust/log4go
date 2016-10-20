@@ -10,7 +10,7 @@ import (
 
 // Formatter interface for formatters.
 type Formatter interface {
-	Format(rec *Record) (string, error)
+	Format(rec *Record) ([]byte, error)
 }
 
 // TemplateFormatter is formatting based on a string template.
@@ -33,6 +33,7 @@ func NewTemplateFormatter(format string) (Formatter, error) {
 
 const (
 	tfTime = iota
+	tfTimeMilliseconds
 	tfName
 	tfLevel
 	tfMessage
@@ -46,6 +47,7 @@ const (
 )
 
 var tokenToValue = map[string]int{
+	"timems":  tfTimeMilliseconds,
 	"time":    tfTime,
 	"name":    tfName,
 	"level":   tfLevel,
@@ -125,7 +127,7 @@ func (f *TemplateFormatter) GetFormat() string {
 }
 
 // Format returns the record as a string.
-func (f *TemplateFormatter) Format(r *Record) (string, error) {
+func (f *TemplateFormatter) Format(r *Record) ([]byte, error) {
 	parts := make([]string, 0, 100)
 
 	alignFmt := ""
@@ -138,6 +140,8 @@ func (f *TemplateFormatter) Format(r *Record) (string, error) {
 		case int:
 			s := ""
 			switch {
+			case token == tfTime:
+				s = f.formatTime(r.Time, 1000)
 			case token == tfTime:
 				s = f.formatTime(r.Time)
 			case token == tfName:
@@ -175,11 +179,16 @@ func (f *TemplateFormatter) Format(r *Record) (string, error) {
 		}
 	}
 
-	return strings.Join(parts, ""), nil
+	return []byte(strings.Join(parts, "")), nil
 }
 
-func (f *TemplateFormatter) formatTime(t time.Time) string {
-	return fmt.Sprintf("%4d-%02d-%02d %02d:%02d:%02d", t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second())
+func (f *TemplateFormatter) formatTime(t time.Time, resolution... int) string {
+	ts := fmt.Sprintf("%4d-%02d-%02d %02d:%02d:%02d", t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second())
+
+	if len(resolution) == 1 && resolution[0] == 1000 {
+		ts = fmt.Sprintf("%s.%03d", ts, int(t.Nanosecond()/1e6))
+	}
+	return ts
 }
 
 func (f *TemplateFormatter) formatLevel(level int) string {
