@@ -14,14 +14,18 @@ The `Logger` might have a `Level` set, to limit the logging to that level and ab
 
 ## Handlers ##
 
-Each handler has a formatter associated to it.
+The handler writes a `[]byte` object the best way it knows.
 
 Included:
 
 * `NewStreamHandler`
 * `NewFileHandler`
 
+Each handler has a formatter associated to it.
+
 ## Formatters ##
+
+The formatter formats a log record into a `[]byte` object.
 
 * `NewTemplateFormatter`: Formats the message based on a template string. See below for syntax.
 
