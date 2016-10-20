@@ -263,6 +263,7 @@ func (l *Logger) Debug(message string, args ...interface{}) {
 	l.Log(DEBUG, message, args...)
 }
 
+
 const (
 	// FATAL log level. (also does os.Exit(1))
 	FATAL = 50
@@ -277,10 +278,10 @@ const (
 )
 
 var levelToName = map[int]string{
-	FATAL:      "FATAL ",
+	FATAL:      "FATAL",
 	ERROR:      "ERROR",
 	WARNING:    "WARNING",
-	INFO:       "INFO ",
+	INFO:       "INFO",
 	DEBUG:      "DEBUG",
 	lvlInherit: "UNSET",
 }
