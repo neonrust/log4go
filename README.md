@@ -76,5 +76,6 @@ Supported tokens are:
 
 * name - Logger's full name.
 * time - Time stamp in [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) format, but without time zone.
+* timems - Same as `time`, but with milliseconds as well.
 * level - Name of log message's level.
 * message - The log message itself.
