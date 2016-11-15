@@ -1,9 +1,11 @@
 package log4go
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -263,6 +265,39 @@ func (l *Logger) Debug(message string, args ...interface{}) {
 	l.Log(DEBUG, message, args...)
 }
 
+func (l *Logger) Crash(err interface{}, stack []byte, buildPath string) {
+	// stack will always contain "useless" levels, e.g.:
+	// runtime/debug.Stack(0xc4200ed7f0, 0x6aeee0, 0xc420101120)
+	//    (location of call to debug.Stack())
+	// main.main.func1(0xc420016f00)
+	//    (location of deferred function that called recover())
+	// panic(0x6aeee0, 0xc420101120)
+	//    (location of call of panic())
+
+	lines := make([]string, 0, 10)
+	skipped := 0
+
+	// skip until we find "panic("
+	reader := strings.NewReader(string(stack))
+	for scanner := bufio.NewScanner(reader); scanner.Scan(); {
+		line := scanner.Text()
+		if skipped > 0 || strings.HasPrefix(line, "panic(") {
+			skipped++
+			if skipped >= 3 {
+				if strings.HasPrefix(line, "\t"+buildPath) {
+					line = "   " + line[2+len(buildPath):]
+				}
+				lines = append(lines, line)
+			}
+		}
+	}
+
+	l.Error("CRASH: %v", err)
+	for _, line := range lines {
+		l.Error(line)
+	}
+	os.Exit(1)
+}
 
 const (
 	// FATAL log level. (also does os.Exit(1))
