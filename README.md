@@ -7,7 +7,7 @@ Most things are kept as simple as possible. For example, the (currently) only wa
 
 ## Loggers ##
 
-Hierarchies of loggers may be created. Slightly different from log4j and Python's logging module, the hierarchy is formatted like a file system path: `base/child/grandchild`. (log4j uses dots as separator; `base.child.grandchild`) Root logger has empty name.
+Hierarchies of loggers may be created. Slightly different from log4j and Python's logging module, the hierarchy is formatted akin to a file system path: `base/child/grandchild` (log4j uses dots as separator; e.g. `base.child.grandchild`). Root logger has empty name.
 
 Each `Logger` instance has at least one `Handler` associated to it.
 The `Logger` might have a `Level` set, to limit the logging to that level and above. However, by default it has no level set, which means it will use the level from first ancestor that has it set.
