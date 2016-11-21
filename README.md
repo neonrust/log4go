@@ -60,9 +60,9 @@ myLogAlso.Warning("this is dangerously awesome!")
 
 The above will output:
 ```
-2016-09-23 root      INFO     Hello, log4go!
-2016-09-23 mylog     ERROR    No, not really
-2016-09-23 mylog     WARNING  this is dangerously awesome!
+2016-09-23 11:22:33 root      INFO     Hello, log4go!
+2016-09-23 11:22:33 mylog     ERROR    No, not really
+2016-09-23 11:22:33 mylog     WARNING  this is dangerously awesome!
 ```
 
 ## TemplateFormatter ##
