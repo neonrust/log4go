@@ -3,7 +3,7 @@
 Simple logging for Go akin to the well-known log4j.
 The API was modeled after Python's [logging](https://docs.python.org/3/library/logging.html) module.
 
-Most things are kept as simple as possible.
+Most things are kept as simple as possible. For example, the (currently) only way to configure the logging system is through code, most prominently via the `BasicConfig()` call. There is no file-based configuration.
 
 ## Loggers ##
 
