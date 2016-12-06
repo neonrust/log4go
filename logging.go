@@ -30,6 +30,40 @@ type BasicConfigOpts struct {
 	Handlers []Handler
 }
 
+const (
+	// INHERIT log level (from parent).
+	INHERIT = 0
+
+	// FATAL log level. (also does os.Exit(1))
+	FATAL = 50
+	// ERROR log level.
+	ERROR = 40
+	// WARNING log level.
+	WARNING = 30
+	// INFO log level.
+	INFO = 20
+	// DEBUG log level.
+	DEBUG = 10
+)
+
+var levelToName = map[int]string{
+	INHERIT:    "INHERIT",
+	FATAL:      "FATAL",
+	ERROR:      "ERROR",
+	WARNING:    "WARNING",
+	INFO:       "INFO",
+	DEBUG:      "DEBUG",
+}
+
+
+func LevelName(level int) string {
+	if name, exists := levelToName[level]; ! exists {
+		return fmt.Sprintf("%d", level)
+	} else {
+		return name
+	}
+}
+
 var loggers map[string]*Logger
 var loggersLock = &sync.Mutex{}
 
@@ -73,7 +107,7 @@ func BasicConfig(opts BasicConfigOpts) error {
 	} else {
 		// if any specified handler has no formatter, use the one created above
 		for _, handler := range opts.Handlers {
-			if handler.GetFormatter() == nil {
+			if handler.Formatter() == nil {
 				handler.SetFormatter(formatter)
 			}
 		}
@@ -156,13 +190,13 @@ func (l *Logger) GetLogger(subName string) *Logger {
 	return logger
 }
 
-// SetLevel sets the logging level of the logger.
+// SetLevel sets the logging level of the logger (0 to inherit).
 func (l *Logger) SetLevel(level int) {
 	l.level = level
 }
 
-// GetLevel returns the loggers (effective) level.
-func (l *Logger) GetLevel() int {
+// Level returns the loggers (effective) level.
+func (l *Logger) Level() int {
 	for l.level == lvlInherit {
 		if l.parent != nil {
 			l = l.parent
@@ -208,7 +242,7 @@ type Logger struct {
 
 // Log submits a log message using specific level and message.
 func (l *Logger) Log(level int, message string, args ...interface{}) {
-	ourLevel := l.GetLevel()
+	ourLevel := l.Level()
 
 	if level >= ourLevel {
 		message = fmt.Sprintf(message, args...)
@@ -297,34 +331,4 @@ func (l *Logger) Crash(err interface{}, stack []byte, buildPath string) {
 		l.Error(line)
 	}
 	os.Exit(1)
-}
-
-const (
-	// FATAL log level. (also does os.Exit(1))
-	FATAL = 50
-	// ERROR log level.
-	ERROR = 40
-	// WARNING log level.
-	WARNING = 30
-	// INFO log level.
-	INFO = 20
-	// DEBUG log level.
-	DEBUG = 10
-)
-
-var levelToName = map[int]string{
-	FATAL:      "FATAL",
-	ERROR:      "ERROR",
-	WARNING:    "WARNING",
-	INFO:       "INFO",
-	DEBUG:      "DEBUG",
-	lvlInherit: "UNSET",
-}
-
-// Record is a log message container.
-type Record struct {
-	Time    time.Time
-	Name    string
-	Level   int
-	Message string
 }

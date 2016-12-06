@@ -151,7 +151,7 @@ func (f *TemplateFormatter) Format(r *Record) ([]byte, error) {
 					s = r.Name
 				}
 			case token == tfLevel:
-				s = f.formatLevel(r.Level)
+				s = LevelName(r.Level)
 			case token == tfMessage:
 				s = r.Message
 			case token&tfFieldWidthMask > 0:
@@ -189,12 +189,4 @@ func (f *TemplateFormatter) formatTime(t time.Time, resolution... int) string {
 		ts = fmt.Sprintf("%s.%03d", ts, int(t.Nanosecond()/1e6))
 	}
 	return ts
-}
-
-func (f *TemplateFormatter) formatLevel(level int) string {
-	name, ok := levelToName[level]
-	if !ok {
-		name = "UNSET"
-	}
-	return name
 }
