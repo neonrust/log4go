@@ -3,11 +3,11 @@
 Simple logging for Go akin to the well-known log4j.
 The API was modeled after Python's [logging](https://docs.python.org/3/library/logging.html) module.
 
-Most things are kept as simple as possible.
+Most things are kept as simple as possible. For example, the (currently) only way to configure the logging system is through code, most prominently via the `BasicConfig()` call. There is no file-based configuration.
 
 ## Loggers ##
 
-Hierarchies of loggers may be created. Slightly different from log4j and Python's logging module, the hierarchy is formatted like a file system path: `base/child/grandchild`. (log4j uses dots as separator; `base.child.grandchild`) Root logger has empty name.
+Hierarchies of loggers may be created. Slightly different from log4j and Python's logging module, the hierarchy is formatted akin to a file system path: `base/child/grandchild` (log4j uses dots as separator; e.g. `base.child.grandchild`). Root logger has no name (or rather, an empty string).
 
 Each `Logger` instance has at least one `Handler` associated to it.
 The `Logger` might have a `Level` set, to limit the logging to that level and above. However, by default it has no level set, which means it will use the level from first ancestor that has it set.
@@ -60,9 +60,9 @@ myLogAlso.Warning("this is dangerously awesome!")
 
 The above will output:
 ```
-2016-09-23 root      INFO     Hello, log4go!
-2016-09-23 mylog     ERROR    No, not really
-2016-09-23 mylog     WARNING  this is dangerously awesome!
+2016-09-23 11:22:33 root      INFO     Hello, log4go!
+2016-09-23 11:22:33 mylog     ERROR    No, not really
+2016-09-23 11:22:33 mylog     WARNING  this is dangerously awesome!
 ```
 
 ## TemplateFormatter ##
@@ -74,8 +74,8 @@ It might include an alignment and field width as well: `{token<width}`, e.g. `{n
 
 Supported tokens are:
 
-* name - Logger's full name.
-* time - Time stamp in [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) format, but without time zone.
-* timems - Same as `time`, but with milliseconds as well.
-* level - Name of log message's level.
-* message - The log message itself.
+* `name` - Logger's full name.
+* `time` - Time stamp in [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) format, but without time zone.
+* `timems` - Same as `time`, but with milliseconds as well.
+* `level` - Name of log message's level.
+* `message` - The log message itself.
