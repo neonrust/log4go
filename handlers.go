@@ -9,7 +9,7 @@ import (
 type Handler interface {
 	Handle(rec *Record) error
 	SetFormatter(formatter Formatter)
-	GetFormatter() Formatter
+	Formatter() Formatter
 	// TODO: SetLevel(level int)  (restrict a handler to a level range)
 }
 
@@ -48,7 +48,7 @@ func NewFileHandler(fileName string, append bool) (Handler, error) {
 
 // Handle handles the formatted message.
 func (h *StreamHandler) Handle(rec *Record) error {
-	msg, err := h.GetFormatter().Format(rec)
+	msg, err := h.Formatter().Format(rec)
 	if err != nil {
 		return err
 	}
@@ -83,7 +83,7 @@ func (h *StreamHandler) SetFormatter(formatter Formatter) {
 	h.formatter = formatter
 }
 
-// GetFormatter resutns the handler's Formatter.
-func (h *StreamHandler) GetFormatter() Formatter {
+// Formatter resutns the handler's Formatter.
+func (h *StreamHandler) Formatter() Formatter {
 	return h.formatter
 }
