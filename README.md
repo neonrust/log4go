@@ -47,27 +47,32 @@ rootLog := log4go.GetLogger()
 rootLog.Debug("won't be shown")
 rootLog.Info("Hello, log4go!")
 
-// Using a sub-logger
+// Using a specific logger
 // By top-level function:
 myLog := log4go.GetLogger("mylog")
-myLog.Error("No, not really")
+myLog.Error("Awesomeness ahead")
 // Or by another logger:
 myLogAlso := rootLog.GetLogger("mylog")
 
 myLog.Info("printf-formatting works, %s", "of course")
-myLogAlso.Warning("this is dangerously awesome!")
+myLogAlso.Warning("dangerously useful")
+
+// Using a sub-logger (inherits parent's log level, unless further restricted)
+subLog := myLog.GetLogger("cool")
+subLog.Info("specific stuff")
 ```
 
 The above will output:
 ```
-2016-09-23 11:22:33 root      INFO     Hello, log4go!
-2016-09-23 11:22:33 mylog     ERROR    No, not really
-2016-09-23 11:22:33 mylog     WARNING  this is dangerously awesome!
+2016-09-23 11:22:33 root       INFO     Hello, log4go!
+2016-09-23 11:22:33 mylog      ERROR    Awesomeness ahead
+2016-09-23 11:22:33 mylog      WARNING  dangerously userful
+2016-09-23 11:22:33 mylog/cool INFO     specific stuff
 ```
 
 ## TemplateFormatter ##
 
-Template syntax is similar to the string formatting language in Python (and possibly others).
+Template syntax is similar to the string formatting language in Python (and possibly others). Yes, I know, not Go templates... :(
 
 Basic token syntax is: `{token}`
 It might include an alignment and field width as well: `{token<width}`, e.g. `{name>20}` (right-aligned logger name).
