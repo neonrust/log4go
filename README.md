@@ -36,6 +36,7 @@ Included formatters:
 ## Example ##
 
 ```
+:::go
 log4go.BasicConfig(log4go.BasicConfigOpts{
     Level: log4go.INFO,
     FileName: "awesome.log",
