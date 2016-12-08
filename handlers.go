@@ -67,8 +67,8 @@ func (h *StreamHandler) Level() int {
 func (h *StreamHandler) Handle(rec *Record) error {
 	if ! h.shutdown {
 		h.commitChannel <- *rec
+		//fmt.Printf("[%p] SteamHandler.Handle(): sent record: '%s'\n", h, rec.Message)
 	}
-	//fmt.Printf("[%p] SteamHandler.Handle(): sent record: '%s'\n", h, rec.Message)
 	return nil
 }
 
