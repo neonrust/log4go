@@ -63,6 +63,28 @@ func TestLevelFilter(t *testing.T) {
 	}
 }
 
+func TestNoHandlers(t *testing.T) {
+	var buf bytes.Buffer
+
+	log4go.BasicConfig(log4go.BasicConfigOpts{
+		Level:  log4go.DEBUG,
+		Writer: &buf,
+	})
+
+	log4go.GetLogger().RemoveHandlers()
+
+	log := log4go.GetLogger("test")
+
+	log.Info("this will never appear in the log")
+
+	log4go.Shutdown()
+
+	if buf.Len() != 0 {
+		t.Errorf("expected empty log, got %d bytes", buf.Len())
+	}
+}
+
+
 func TestMulti(t *testing.T) {
 	var buf bytes.Buffer
 

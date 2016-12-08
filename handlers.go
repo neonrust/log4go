@@ -47,7 +47,10 @@ func NewFileHandler(fileName string, append bool) (*StreamHandler, error) {
 	flags := os.O_WRONLY | os.O_CREATE
 	if append {
 		flags |= os.O_APPEND
+	} else {
+		flags |= os.O_TRUNC
 	}
+
 	writer, err := os.OpenFile(fileName, flags, 0664)
 	if err != nil {
 		return nil, err
