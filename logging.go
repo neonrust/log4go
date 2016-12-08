@@ -27,7 +27,7 @@ import (
 // BasicConfigOpts is used to supply options to BasicConfig.
 type BasicConfigOpts struct {
 	FileName   string
-	FileAppend bool
+	FileAppend interface{}
 	Writer     io.Writer
 	Format     string
 	Level      int
@@ -38,7 +38,6 @@ type BasicConfigOpts struct {
 type Logger struct {
 	name           string
 	level          int
-	defaultHandler bool
 	handlers       []Handler
 	parent         *Logger
 	children       []*Logger
@@ -87,7 +86,6 @@ var recordPool sync.Pool
 func init() {
 	recordPool = sync.Pool{
 		New: func() interface{} {
-			//fmt.Fprintln(os.Stderr, "new record")
 			return &Record{}
 		},
 	}
@@ -103,6 +101,7 @@ func BasicConfig(opts BasicConfigOpts) error {
 	defer loggersLock.Unlock()
 
 	// remove any/all created Logger, Handler and Formatter instances
+	Shutdown()
 	loggers = map[string]*Logger{}
 	rootLogger = nil
 
@@ -122,7 +121,8 @@ func BasicConfig(opts BasicConfigOpts) error {
 		if opts.Writer != nil {
 			defHandler, err = NewStreamHandler(opts.Writer)
 		} else if len(opts.FileName) > 0 {
-			defHandler, err = NewFileHandler(opts.FileName, opts.FileAppend)
+			append := opts.FileAppend == nil || opts.FileAppend.(bool)
+			defHandler, err = NewFileHandler(opts.FileName, append)
 		} else {
 			defHandler, err = NewStreamHandler(os.Stderr)
 		}
@@ -230,7 +230,6 @@ func createRootLogger(handlers... Handler) *Logger {
 	//fmt.Printf("root logger, h = %p\n", handler)
 
 	logger := newLogger(nil, "", WARNING, handlers...)
-	logger.defaultHandler = true
 
 	//runtime.SetFinalizer(logger, onRootEnded)
 
@@ -287,22 +286,19 @@ func (l *Logger) Level() int {
 	return l.level
 }
 
-// AddHandler adds a log record handler (default handler is replaced).
+// AddHandler adds a log record handler.
 func (l *Logger) AddHandler(handler Handler) {
-	if l.defaultHandler {
-		l.defaultHandler = false
-		l.handlers = []Handler{}
-	}
 	l.handlers = append(l.handlers, handler)
 }
 
 // ReplaceHandlers replaces all added handler with a new handler.
 func (l *Logger) ReplaceHandlers(handler Handler) {
-	if l.defaultHandler {
-		l.defaultHandler = false
-	}
-	l.handlers = []Handler{}
+	l.RemoveHandlers()
 	l.AddHandler(handler)
+}
+
+func (l *Logger) RemoveHandlers() {
+	l.handlers = []Handler{}
 }
 
 // Handlers returns all handlers used by this logger (i.e. this and all its parents' handlers).

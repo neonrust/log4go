@@ -10,6 +10,7 @@ import (
 
 // Formatter interface for formatters.
 type Formatter interface {
+	// Format formats a Record into a byte array
 	Format(rec *Record) ([]byte, error)
 }
 
@@ -17,10 +18,12 @@ type Formatter interface {
 type TemplateFormatter struct {
 	formatString string
 	formatTokens []interface{}
+
+	levelColoring map[int]string
 }
 
 // NewTemplateFormatter returns a new TemplateFormatter.
-func NewTemplateFormatter(format string) (Formatter, error) {
+func NewTemplateFormatter(format string) (*TemplateFormatter, error) {
 	fmt := new(TemplateFormatter)
 	fmt.formatString = format
 
@@ -56,6 +59,63 @@ var tokenToValue = map[string]int{
 
 var templatePtn *regexp.Regexp
 var templateSpecPtn *regexp.Regexp
+
+var defaultlevelColoring map[int]string
+
+var color_bold string
+var color_normal string
+var color_faint string
+var color_red string
+var color_fail string
+var color_green string
+var color_yellow string
+var color_blue string
+var color_purple string
+var color_red_bg string
+
+func init() {
+	_esc := func(codes... string) string {
+		return strings.Join([]string{
+			"\x1b",
+			"[",
+			strings.Join(codes, ";"),
+			"m",
+		}, "")
+	}
+	color_bold = _esc("1")
+	color_normal = _esc("0")
+	color_faint = _esc("38", "5", "240")
+	color_red = _esc("31", "1")
+	color_fail = _esc("41", "37", "1")
+	color_green = _esc("38", "5", "66")
+	color_yellow = _esc("38", "5", "220")
+	color_blue = _esc("38", "5", "39")
+	color_purple = _esc("38", "5", "96")
+	color_red_bg = _esc("41", "1")
+
+	defaultlevelColoring = map[int]string {
+		FATAL: color_red_bg + color_bold,
+		ERROR: color_red,
+		WARNING: color_yellow,
+		INFO: color_normal,
+		DEBUG: color_faint,
+	}
+}
+
+
+// EnableLevelColoring sets default coloring based on level, false to disable.
+func (f *TemplateFormatter) EnableLevelColoring(enable bool) {
+	if enable {
+		f.levelColoring = defaultlevelColoring
+	} else {
+		f.levelColoring = nil
+	}
+}
+
+// SetLevelColoring specifies how to color log lines based on level, nil to disable.
+func (f *TemplateFormatter) SetLevelColoring(levelToColors map[int]string) {
+	f.levelColoring = levelToColors
+}
 
 // SetFormat setts the formatters template string format.
 func (f *TemplateFormatter) SetFormat(template string) error {
@@ -126,12 +186,22 @@ func (f *TemplateFormatter) GetFormat() string {
 	return f.formatString
 }
 
+const colorReset = "\x1b[0m"
+
 // Format returns the record as a string.
 func (f *TemplateFormatter) Format(r *Record) ([]byte, error) {
 	parts := make([]string, 0, 10)
 
 	alignFmt := ""
 	width := 0
+
+	colorSet := false
+	if f.levelColoring != nil {
+		if color, ok := f.levelColoring[r.Level]; ok {
+			parts = append(parts, color)
+			colorSet = true
+		}
+	}
 
 	for _, token := range f.formatTokens {
 		switch token := token.(type) {
@@ -177,6 +247,10 @@ func (f *TemplateFormatter) Format(r *Record) ([]byte, error) {
 				parts = append(parts, s)
 			}
 		}
+	}
+
+	if colorSet {
+		parts = append(parts, colorReset)
 	}
 
 	return []byte(strings.Join(parts, "")), nil
