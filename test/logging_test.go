@@ -40,9 +40,44 @@ func TestOne(t *testing.T) {
 	}
 
 	if ! foundLast {
-		t.Error("last message not found")
+		t.Errorf("last message not found (output len: %d)", buf.Len())
 	}
 }
+
+func TestOnlyChildLogger(t *testing.T) {
+
+	log4go.GetLogger().RemoveHandlers() // no logging from root logger
+
+
+	var buf bytes.Buffer
+	fp := &buf
+	//fp, _ := os.OpenFile("TestOnlyChildLogger.log", os.O_CREATE | os.O_TRUNC, 0664)
+	handler, _ := log4go.NewStreamHandler(fp)
+	fmt, _ := log4go.NewTemplateFormatter("{name} {level} {message}")
+	handler.SetFormatter(fmt)
+	log := log4go.GetLogger("test")
+	log.AddHandler(handler)
+	log.SetLevel(log4go.INFO)  // otherwise it will inherit root's WARNING (the default)
+
+	log.Info("test message 99")
+
+	log4go.Shutdown()
+
+	foundLast := false
+	scanner := bufio.NewScanner(&buf)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasSuffix(line, "test message 99") {
+			foundLast = true
+		}
+	}
+
+	if ! foundLast {
+		t.Errorf("last message not found (output len: %d)", buf.Len())
+	}
+}
+
 
 func TestLevelFilter(t *testing.T) {
 	var buf bytes.Buffer

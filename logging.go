@@ -91,8 +91,6 @@ func init() {
 	}
 
 	loggers = make(map[string]*Logger)
-
-	rootLogger = createRootLogger()
 }
 
 // BasicConfig sets up a simple configuration of the logging system.
@@ -158,6 +156,8 @@ func Shutdown() {
 	shutdownHandlers(rootLogger)
 
 	runtime.Gosched()
+	runtime.GC()
+
 	time.Sleep(100*time.Millisecond)
 }
 
@@ -173,8 +173,11 @@ func shutdownHandlers(log *Logger) {
 
 	if log.handlers != nil {
 		for _, handler := range log.handlers {
+			//fmt.Fprintf(os.Stderr, "[%s] shutting down handler: %p\n", log.name, handler)
 			handler.Shutdown()
 		}
+	} else {
+		//fmt.Fprintf(os.Stderr, "[%s] no handlers to shut down\n", log.name)
 	}
 }
 
@@ -218,7 +221,7 @@ func newLogger(parent *Logger, name string, level int, handlers... Handler) *Log
 }
 
 func createRootLogger(handlers... Handler) *Logger {
-	//fmt.Println("creating root logger (stderr)")
+	//fmt.Println("creating root logger: %d handlers", len(handlers))
 
 	if len(handlers) == 0 {
 		handler, _ := NewStreamHandler(os.Stderr)
@@ -231,17 +234,9 @@ func createRootLogger(handlers... Handler) *Logger {
 
 	logger := newLogger(nil, "", WARNING, handlers...)
 
-	//runtime.SetFinalizer(logger, onRootEnded)
-
 	return logger
 }
 
-/*
-func onRootEnded(_ interface{}) {
-	//fmt.Fprintln(os.Stderr, "onRootEnded()")
-	//Shutdown()
-}
-*/
 // GetLogger returns a sub-logger (inherits traits from parent).
 func (l *Logger) GetLogger(subName string) *Logger {
 	// get/create a sub-logger
