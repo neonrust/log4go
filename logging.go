@@ -232,15 +232,17 @@ func createRootLogger(handlers... Handler) *Logger {
 	logger := newLogger(nil, "", WARNING, handlers...)
 	logger.defaultHandler = true
 
-	runtime.SetFinalizer(logger, onRootEnded)
+	//runtime.SetFinalizer(logger, onRootEnded)
 
 	return logger
 }
 
+/*
 func onRootEnded(_ interface{}) {
-	Shutdown()
+	//fmt.Fprintln(os.Stderr, "onRootEnded()")
+	//Shutdown()
 }
-
+*/
 // GetLogger returns a sub-logger (inherits traits from parent).
 func (l *Logger) GetLogger(subName string) *Logger {
 	// get/create a sub-logger
