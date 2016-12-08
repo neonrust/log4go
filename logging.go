@@ -1,3 +1,5 @@
+// Package log4go provides a simple, tree-like logging facility.
+
 package log4go
 
 import (
@@ -8,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"runtime"
 )
 
 /*
@@ -23,18 +26,29 @@ import (
 
 // BasicConfigOpts is used to supply options to BasicConfig.
 type BasicConfigOpts struct {
-	FileName string
-	Writer   io.Writer
-	Format   string
-	Level    int
-	Handlers []Handler
+	FileName   string
+	FileAppend bool
+	Writer     io.Writer
+	Format     string
+	Level      int
+	Handlers   []Handler
 }
 
-const (
-	// INHERIT log level (from parent).
-	INHERIT = 0
+// Logger objects.
+type Logger struct {
+	name           string
+	level          int
+	defaultHandler bool
+	handlers       []Handler
+	parent         *Logger
+	children       []*Logger
+}
 
-	// FATAL log level. (also does os.Exit(1))
+// Log levels.
+const (
+	// NOTSET log level (inherits from parent).
+	NOTSET = 0
+	// FATAL log level (also does os.Exit(1)).
 	FATAL = 50
 	// ERROR log level.
 	ERROR = 40
@@ -47,7 +61,7 @@ const (
 )
 
 var levelToName = map[int]string{
-	INHERIT:    "INHERIT",
+	NOTSET:     "NOTSET",
 	FATAL:      "FATAL",
 	ERROR:      "ERROR",
 	WARNING:    "WARNING",
@@ -65,101 +79,167 @@ func LevelName(level int) string {
 }
 
 var loggers map[string]*Logger
+var rootLogger *Logger
 var loggersLock = &sync.Mutex{}
+
+var recordPool sync.Pool
+
+func init() {
+	recordPool = sync.Pool{
+		New: func() interface{} {
+			//fmt.Fprintln(os.Stderr, "new record")
+			return &Record{}
+		},
+	}
+
+	loggers = make(map[string]*Logger)
+
+	rootLogger = createRootLogger()
+}
 
 // BasicConfig sets up a simple configuration of the logging system.
 func BasicConfig(opts BasicConfigOpts) error {
 	loggersLock.Lock()
 	defer loggersLock.Unlock()
 
-	loggers = map[string]*Logger{} // replace any already created Logger
+	// remove any/all created Logger, Handler and Formatter instances
+	loggers = map[string]*Logger{}
+	rootLogger = nil
 
 	var err error
 
-	if opts.Writer == nil {
-		if len(opts.FileName) == 0 {
-			opts.Writer = os.Stdout
-		} else {
-			opts.Writer, err = os.OpenFile(opts.FileName, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0664)
-			if err != nil {
-				return err
-			}
-		}
-	}
 	if opts.Level == 0 {
 		opts.Level = WARNING
 	}
 	if len(opts.Format) == 0 {
 		opts.Format = "{time} {name<20} {level<8} {message}"
 	}
-	var formatter Formatter
-	formatter, err = NewTemplateFormatter(opts.Format)
-	if err != nil {
-		return err
-	}
 
 	if len(opts.Handlers) == 0 {
-		defHandler := &StreamHandler{
-			writer:    opts.Writer,
-			formatter: formatter,
+		var defHandler Handler
+		var err error
+
+		if opts.Writer != nil {
+			defHandler, err = NewStreamHandler(opts.Writer)
+		} else if len(opts.FileName) > 0 {
+			defHandler, err = NewFileHandler(opts.FileName, opts.FileAppend)
+		} else {
+			defHandler, err = NewStreamHandler(os.Stderr)
 		}
-		opts.Handlers = append(opts.Handlers, defHandler)
-	} else {
-		// if any specified handler has no formatter, use the one created above
-		for _, handler := range opts.Handlers {
-			if handler.Formatter() == nil {
-				handler.SetFormatter(formatter)
+		if err != nil {
+			return err
+		}
+		opts.Handlers = []Handler { defHandler }
+	}
+
+	// use a default formatter if the specified handler(s) has none
+	var defFormatter Formatter
+	for _, handler := range opts.Handlers {
+		if handler.Formatter() == nil {
+			if defFormatter == nil { // create a default formatter
+				defFormatter, err = NewTemplateFormatter(opts.Format)
+				if err != nil {
+					return err
+				}
 			}
+			handler.SetFormatter(defFormatter)
 		}
 	}
 
-	logger := &Logger{
-		name:     "", // i.e. root
-		level:    opts.Level,
-		handlers: opts.Handlers,
-	}
-
-	loggers[""] = logger
+	rootLogger = createRootLogger(opts.Handlers...)
+	rootLogger.SetLevel(opts.Level)
 
 	return nil
 }
 
-// GetLogger returns the root logger.
+func Shutdown() {
+	// close all commit channels (depth-first), then wait for the commiters to finish (somehow) ?
+
+	shutdownHandlers(rootLogger)
+
+	runtime.Gosched()
+	time.Sleep(100*time.Millisecond)
+}
+
+func shutdownHandlers(log *Logger) {
+	if log == nil {
+		return
+	}
+	if log.children != nil {
+		for _, child := range log.children {
+			shutdownHandlers(child)
+		}
+	}
+
+	if log.handlers != nil {
+		for _, handler := range log.handlers {
+			handler.Shutdown()
+		}
+	}
+}
+
+// GetLogger() returns the root logger while GetLogger(name) calls GetLogger(name) on the root logger.
 func GetLogger(name ...string) *Logger {
 	if len(name) > 0 && !(len(name) == 1 && name[0] == "root") {
 		return GetLogger().GetLogger(name[0])
 	}
 
-	loggerName := "" // i.e. root
-
 	// get/create the root logger
 	loggersLock.Lock()
 	defer loggersLock.Unlock()
 
-	logger, exist := loggers[loggerName]
-	if !exist {
-		//out.Println("creating root logger")
-		defHandler := &StreamHandler{writer: os.Stdout}
-		formatter, _ := NewTemplateFormatter("{time} {name} {level} {message}")
-		defHandler.SetFormatter(formatter)
-
-		logger = &Logger{
-			name:           loggerName,
-			level:          WARNING,
-			defaultHandler: true,
-		}
-		logger.handlers = append(logger.handlers, defHandler)
-
-		loggers[""] = logger
-
-		//} else {
-		//	out.Println("getting root logger")
+	if rootLogger == nil {
+		rootLogger = createRootLogger()
 	}
+
+	return rootLogger
+}
+
+
+func newLogger(parent *Logger, name string, level int, handlers... Handler) *Logger {
+	// use: sync.Pool ?
+	log := &Logger{
+		name:  name,
+		level: level,
+	}
+	if parent != nil {
+		log.parent = parent
+		if parent.children == nil {
+			parent.children = make([]*Logger, 0, 5)
+		}
+		parent.children = append(parent.children, log)
+	}
+
+	if len(handlers) > 0 {
+		log.handlers = handlers
+	}
+
+	return log
+}
+
+func createRootLogger(handlers... Handler) *Logger {
+	//fmt.Println("creating root logger (stderr)")
+
+	if len(handlers) == 0 {
+		handler, _ := NewStreamHandler(os.Stderr)
+		formatter, _ := NewTemplateFormatter("{time} {name} {level} {message}")
+		handler.SetFormatter(formatter)
+		handlers = []Handler{handler}
+	}
+
+	//fmt.Printf("root logger, h = %p\n", handler)
+
+	logger := newLogger(nil, "", WARNING, handlers...)
+	logger.defaultHandler = true
+
+	runtime.SetFinalizer(logger, onRootEnded)
 
 	return logger
 }
 
-const lvlInherit = 0
+func onRootEnded(_ interface{}) {
+	Shutdown()
+}
 
 // GetLogger returns a sub-logger (inherits traits from parent).
 func (l *Logger) GetLogger(subName string) *Logger {
@@ -176,28 +256,25 @@ func (l *Logger) GetLogger(subName string) *Logger {
 
 	logger, exists := loggers[loggerName]
 	if !exists {
-		//out.Printf("creating sub logger: %s\n", loggerName)
-		logger = &Logger{
-			name:   loggerName,
-			level:  lvlInherit,
-			parent: l,
-		}
-		//} else {
-		//	out.Printf("getting sub logger: %s\n", loggerName)
+		//fmt.Printf("'%s' creating sub-logger: %s\n", l.name, loggerName)
+
+		// create sub-logger
+		logger = newLogger(l, loggerName, NOTSET)
+
+		loggers[loggerName] = logger
 	}
-	loggers[loggerName] = logger
 
 	return logger
 }
 
-// SetLevel sets the logging level of the logger (0 to inherit).
+// SetLevel sets the logging level of the logger.
 func (l *Logger) SetLevel(level int) {
 	l.level = level
 }
 
 // Level returns the loggers (effective) level.
 func (l *Logger) Level() int {
-	for l.level == lvlInherit {
+	for l.level == NOTSET {
 		if l.parent != nil {
 			l = l.parent
 		}
@@ -208,7 +285,7 @@ func (l *Logger) Level() int {
 	return l.level
 }
 
-// AddHandler adds a log record handler.
+// AddHandler adds a log record handler (default handler is replaced).
 func (l *Logger) AddHandler(handler Handler) {
 	if l.defaultHandler {
 		l.defaultHandler = false
@@ -221,62 +298,66 @@ func (l *Logger) AddHandler(handler Handler) {
 func (l *Logger) ReplaceHandlers(handler Handler) {
 	if l.defaultHandler {
 		l.defaultHandler = false
-		l.handlers = []Handler{}
 	}
+	l.handlers = []Handler{}
 	l.AddHandler(handler)
 }
 
-// GetHandlers return a Loggers handlers
-// func (l *Logger) GetHandlers() []Handler {
-// 	return l.handlers
-// }
-
-// Logger objects.
-type Logger struct {
-	name           string
-	level          int
-	defaultHandler bool
-	handlers       []Handler
-	parent         *Logger
+// Handlers returns all handlers used by this logger (i.e. this and all its parents' handlers).
+func (l *Logger) Handlers() []Handler {
+	handlers := make([]Handler, 0, 10)
+	logger := l
+	for logger != nil {
+		if logger.handlers != nil && len(logger.handlers) > 0 {
+			handlers = append(handlers, logger.handlers...)
+		}
+		logger = logger.parent
+	}
+	return handlers
 }
 
 // Log submits a log message using specific level and message.
 func (l *Logger) Log(level int, message string, args ...interface{}) {
 	ourLevel := l.Level()
 
-	if level >= ourLevel {
-		message = fmt.Sprintf(message, args...)
+	if level < ourLevel {
+		return
+	}
 
-		record := &Record{
-			Name:    l.name,
-			Time:    time.Now(),
-			Level:   level,
-			Message: message,
-		}
+	var record *Record
 
-		// build a Logger tree, starting with ourselves
-		loggers := []*Logger{l}
-		logger := l
-		for logger.parent != nil {
-			logger = logger.parent
-			loggers = append([]*Logger{logger}, loggers...)
-		}
+	// traverse up this logger's ancestors, calling all handlers along the way
+	logger := l
+	for logger != nil {
+		if len(logger.handlers) > 0 { // we need handlers!
+			if record == nil {
+				record = recordPool.Get().(*Record)
 
-		for _, logger := range loggers {
+				record.Time = time.Now()
+				record.Name = l.name
+				record.Level = level
+				record.Message = fmt.Sprintf(message, args...)
+			}
+
+			// invoke all handlers
 			for _, handler := range logger.handlers {
 				handler.Handle(record)
 			}
 		}
+		logger = logger.parent
 	}
 
-	if level == FATAL {
-		os.Exit(1)
+	if record != nil {
+		recordPool.Put(record)
 	}
 }
 
 // Fatal logs message with FATAL level (also does os.Exit(1))
 func (l *Logger) Fatal(message string, args ...interface{}) {
 	l.Log(FATAL, message, args...)
+
+	Shutdown()
+	os.Exit(1)
 }
 
 // Error logs message with ERROR level.
@@ -330,5 +411,8 @@ func (l *Logger) Crash(err interface{}, stack []byte, buildPath string) {
 	for _, line := range lines {
 		l.Error(line)
 	}
+
+	Shutdown()
+
 	os.Exit(1)
 }
