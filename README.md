@@ -61,6 +61,10 @@ myLogAlso.Warning("dangerously useful")
 // Using a sub-logger (inherits parent's log level, unless further restricted)
 subLog := myLog.GetLogger("cool")
 subLog.Info("specific stuff")
+
+// since commit 21eaadd StreamHandler now writes to the stream in a goroutine
+// to make sure it's flushed at app exit, call Shutdown()
+log4go.Shutdown()
 ```
 
 The above will output:
