@@ -47,8 +47,8 @@ const (
 )
 
 var tokenToValue = map[string]int{
-	"timems":  tfTimeMilliseconds,
 	"time":    tfTime,
+	"timems":  tfTimeMilliseconds,
 	"name":    tfName,
 	"level":   tfLevel,
 	"message": tfMessage,
@@ -128,7 +128,7 @@ func (f *TemplateFormatter) GetFormat() string {
 
 // Format returns the record as a string.
 func (f *TemplateFormatter) Format(r *Record) ([]byte, error) {
-	parts := make([]string, 0, 100)
+	parts := make([]string, 0, 10)
 
 	alignFmt := ""
 	width := 0
