@@ -43,6 +43,10 @@ log4go.BasicConfig(log4go.BasicConfigOpts{
     Format: "{time} {name<10} {level<8} {message}",
 })
 
+// Since commit 21eaadd, StreamHandler now writes to the stream in a goroutine.
+// To make sure it's flushed at app exit, call Shutdown().
+defer log4go.Shutdown()
+
 // Using the root logger
 rootLog := log4go.GetLogger()
 rootLog.Debug("won't be shown")
@@ -61,17 +65,13 @@ myLogAlso.Warning("dangerously useful")
 // Using a sub-logger (inherits parent's log level, unless further restricted)
 subLog := myLog.GetLogger("cool")
 subLog.Info("specific stuff")
-
-// since commit 21eaadd StreamHandler now writes to the stream in a goroutine
-// to make sure it's flushed at app exit, call Shutdown()
-log4go.Shutdown()
 ```
 
 The above will output:
 ```
 2016-09-23 11:22:33 root       INFO     Hello, log4go!
 2016-09-23 11:22:33 mylog      ERROR    Awesomeness ahead
-2016-09-23 11:22:33 mylog      WARNING  dangerously userful
+2016-09-23 11:22:33 mylog      WARNING  dangerously useful
 2016-09-23 11:22:33 mylog/cool INFO     specific stuff
 ```
 
