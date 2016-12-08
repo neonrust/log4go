@@ -36,11 +36,16 @@ Included formatters:
 ## Example ##
 
 ```
+:::go
 log4go.BasicConfig(log4go.BasicConfigOpts{
     Level: log4go.INFO,
     FileName: "awesome.log",
     Format: "{time} {name<10} {level<8} {message}",
 })
+
+// Since commit 21eaadd, StreamHandler now writes to the stream in a goroutine.
+// To make sure it's flushed at app exit, call Shutdown().
+defer log4go.Shutdown()
 
 // Using the root logger
 rootLog := log4go.GetLogger()
@@ -66,7 +71,7 @@ The above will output:
 ```
 2016-09-23 11:22:33 root       INFO     Hello, log4go!
 2016-09-23 11:22:33 mylog      ERROR    Awesomeness ahead
-2016-09-23 11:22:33 mylog      WARNING  dangerously userful
+2016-09-23 11:22:33 mylog      WARNING  dangerously useful
 2016-09-23 11:22:33 mylog/cool INFO     specific stuff
 ```
 
