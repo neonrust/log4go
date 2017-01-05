@@ -373,7 +373,14 @@ func (l *Logger) Debug(message string, args ...interface{}) {
 	l.Log(DEBUG, message, args...)
 }
 
-func (l *Logger) Crash(err interface{}, stack []byte, buildPath string) {
+type CrashOpts struct {
+	// BuildPath strips this prefix from all source file references in the stack trace.
+	BuildPath string
+	// ExitCode makes os.Exit(ExitCode), if set.
+	ExitCode  int
+}
+
+func (l *Logger) Crash(err interface{}, stack []byte, opts... CrashOpts) {
 	// stack will always contain "useless" levels, e.g.:
 	// runtime/debug.Stack(0xc4200ed7f0, 0x6aeee0, 0xc420101120)
 	//    (location of call to debug.Stack())
@@ -381,6 +388,13 @@ func (l *Logger) Crash(err interface{}, stack []byte, buildPath string) {
 	//    (location of deferred function that called recover())
 	// panic(0x6aeee0, 0xc420101120)
 	//    (location of call of panic())
+
+	if len(opts) == 0 {
+		opts = []CrashOpts{}
+	}
+
+	buildPath := opts[0].BuildPath
+	exitCode := opts[0].ExitCode
 
 	lines := make([]string, 0, 10)
 	skipped := 0
@@ -392,7 +406,7 @@ func (l *Logger) Crash(err interface{}, stack []byte, buildPath string) {
 		if skipped > 0 || strings.HasPrefix(line, "panic(") {
 			skipped++
 			if skipped >= 3 {
-				if strings.HasPrefix(line, "\t"+buildPath) {
+				if len(opts[0].BuildPath) > 0 && strings.HasPrefix(line, "\t"+buildPath) {
 					line = "   " + line[2+len(buildPath):]
 				}
 				lines = append(lines, line)
@@ -401,11 +415,13 @@ func (l *Logger) Crash(err interface{}, stack []byte, buildPath string) {
 	}
 
 	l.Error("CRASH: %v", err)
+
 	for _, line := range lines {
 		l.Error(line)
 	}
 
-	Shutdown()
-
-	os.Exit(1)
+	if exitCode != 0 {
+		Shutdown()
+		os.Exit(exitCode)
+	}
 }
