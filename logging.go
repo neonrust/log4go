@@ -378,6 +378,8 @@ type CrashOpts struct {
 	BuildPath string
 	// ExitCode makes os.Exit(ExitCode), if set.
 	ExitCode  int
+	// PlainStack instructs Crash to print the stack without path stripping or log formatting
+	PlainStack bool
 }
 
 func (l *Logger) Crash(err interface{}, stack []byte, opts... CrashOpts) {
@@ -395,6 +397,7 @@ func (l *Logger) Crash(err interface{}, stack []byte, opts... CrashOpts) {
 
 	buildPath := opts[0].BuildPath
 	exitCode := opts[0].ExitCode
+	plainStack := opts[0].PlainStack
 
 	lines := make([]string, 0, 10)
 	skipped := 0
@@ -406,7 +409,7 @@ func (l *Logger) Crash(err interface{}, stack []byte, opts... CrashOpts) {
 		if skipped > 0 || strings.HasPrefix(line, "panic(") {
 			skipped++
 			if skipped >= 3 {
-				if len(opts[0].BuildPath) > 0 && strings.HasPrefix(line, "\t"+buildPath) {
+				if !plainStack && len(opts[0].BuildPath) > 0 && strings.HasPrefix(line, "\t"+buildPath) {
 					line = "   " + line[2+len(buildPath):]
 				}
 				lines = append(lines, line)
@@ -414,10 +417,15 @@ func (l *Logger) Crash(err interface{}, stack []byte, opts... CrashOpts) {
 		}
 	}
 
-	l.Error("CRASH: %v", err)
+	if plainStack {
+		l.Error("CRASH: %v\n%s", err, strings.Join(lines,"\n"))
 
-	for _, line := range lines {
-		l.Error(line)
+	} else {
+		l.Error("CRASH: %v", err)
+
+		for _, line := range lines {
+			l.Error(line)
+		}
 	}
 
 	if exitCode != 0 {
