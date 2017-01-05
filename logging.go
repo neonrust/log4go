@@ -399,33 +399,44 @@ func (l *Logger) Crash(err interface{}, stack []byte, opts... CrashOpts) {
 	exitCode := opts[0].ExitCode
 	plainStack := opts[0].PlainStack
 
-	lines := make([]string, 0, 10)
+
+	lines := make([]string, 0, 20)
 	skipped := 0
 
 	// skip until we find "panic("
 	reader := strings.NewReader(string(stack))
 	for scanner := bufio.NewScanner(reader); scanner.Scan(); {
 		line := scanner.Text()
-		if skipped > 0 || strings.HasPrefix(line, "panic(") {
+
+		if plainStack {
+			lines = append(lines, line)
+
+		} else if skipped > 0 || strings.HasPrefix(line, "panic(") {
 			skipped++
+
 			if skipped >= 3 {
-				if !plainStack && len(opts[0].BuildPath) > 0 && strings.HasPrefix(line, "\t"+buildPath) {
+				if len(opts[0].BuildPath) > 0 && strings.HasPrefix(line, "\t"+buildPath) {
 					line = "   " + line[2+len(buildPath):]
+				} else if ! strings.HasPrefix(line, "\t") {
+					if parts := strings.SplitN(line, "/", -1); len(parts) > 1 {
+						line = parts[len(parts)-1]
+					}
 				}
+
 				lines = append(lines, line)
 			}
 		}
 	}
 
 	if plainStack {
-		l.Error("CRASH: %v\n%s", err, strings.Join(lines,"\n"))
+		l.Error("CRASH: %v\n%s", err, strings.Join(lines, "\n"))
 
 	} else {
-		l.Error("CRASH: %v", err)
+		l.Error("CRASH: %v\n   %s", err, strings.Join(lines, "\n   "))
 
-		for _, line := range lines {
-			l.Error(line)
-		}
+		//for _, line := range lines {
+		//	l.Error(line)
+		//}
 	}
 
 	if exitCode != 0 {
