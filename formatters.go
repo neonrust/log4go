@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"bitbucket.org/tatsujin/log4go/color"
 )
 
 // Formatter interface for formatters.
@@ -20,12 +22,27 @@ type TemplateFormatter struct {
 	formatTokens []interface{}
 
 	levelColoring map[int]string
+
+	patternColoringPatterns []PatternColor
+	patternColoring         map[string]string
+
+	processMessage func(m, c string)string
+}
+
+type PatternColor struct {
+	color string
+	pattern *regexp.Regexp
+}
+
+func default_processMessage(m, c string) string {
+	return m
 }
 
 // NewTemplateFormatter returns a new TemplateFormatter.
 func NewTemplateFormatter(format string) (*TemplateFormatter, error) {
 	fmt := new(TemplateFormatter)
 	fmt.formatString = format
+	fmt.processMessage = default_processMessage
 
 	err := fmt.SetFormat(format)
 	if err != nil {
@@ -60,53 +77,36 @@ var tokenToValue = map[string]int{
 var templatePtn *regexp.Regexp
 var templateSpecPtn *regexp.Regexp
 
-var defaultlevelColoring map[int]string
+var defaultLevelColoring map[int]string
+var defaultPatternColoringPatterns []PatternColor
+var defaultPatternColoring map[string]string
 
-var color_bold string
-var color_normal string
-var color_faint string
-var color_red string
-var color_fail string
-var color_green string
-var color_yellow string
-var color_blue string
-var color_purple string
-var color_red_bg string
 
 func init() {
-	_esc := func(codes... string) string {
-		return strings.Join([]string{
-			"\x1b",
-			"[",
-			strings.Join(codes, ";"),
-			"m",
-		}, "")
+	defaultLevelColoring = map[int]string{
+		FATAL:   color.RedBg + color.Bold,
+		ERROR:   color.Red,
+		WARNING: color.Yellow,
+		INFO:    color.Normal,
+		DEBUG:   color.Faint,
 	}
-	color_bold = _esc("1")
-	color_normal = _esc("0")
-	color_faint = _esc("38", "5", "240")
-	color_red = _esc("31", "1")
-	color_fail = _esc("41", "37", "1")
-	color_green = _esc("38", "5", "66")
-	color_yellow = _esc("38", "5", "220")
-	color_blue = _esc("38", "5", "39")
-	color_purple = _esc("38", "5", "96")
-	color_red_bg = _esc("41", "1")
 
-	defaultlevelColoring = map[int]string {
-		FATAL: color_red_bg + color_bold,
-		ERROR: color_red,
-		WARNING: color_yellow,
-		INFO: color_normal,
-		DEBUG: color_faint,
+	defaultPatternColoringPatterns = []PatternColor{
+		{ "brackets", regexp.MustCompile(`([<>\]\(\)\{\}]|\[)`) },  // all kinds of brackets
+		{ "punct", regexp.MustCompile(`([-/\*\+\.,:])`) },
+		{ "quoted", regexp.MustCompile(`('[^']+'|"[^"]+")`) }, // quoted strings
+	}
+	defaultPatternColoring = map[string]string{
+		"brackets": color.Purple,
+		"punct": color.Blue,
+		"quoted":   color.Green,
 	}
 }
-
 
 // EnableLevelColoring sets default coloring based on level, false to disable.
 func (f *TemplateFormatter) EnableLevelColoring(enable bool) {
 	if enable {
-		f.levelColoring = defaultlevelColoring
+		f.levelColoring = defaultLevelColoring
 	} else {
 		f.levelColoring = nil
 	}
@@ -115,6 +115,39 @@ func (f *TemplateFormatter) EnableLevelColoring(enable bool) {
 // SetLevelColoring specifies how to color log lines based on level, nil to disable.
 func (f *TemplateFormatter) SetLevelColoring(levelToColors map[int]string) {
 	f.levelColoring = levelToColors
+}
+
+// EnablePatternColoring sets default colors & patterns, false to disable.
+func (f *TemplateFormatter) EnablePatternColoring(enable bool) {
+	if enable {
+		f.patternColoringPatterns = defaultPatternColoringPatterns
+		f.patternColoring = defaultPatternColoring
+
+		f.processMessage = makeProcessor(f.patternColoring, f.patternColoringPatterns)
+	} else {
+		f.patternColoringPatterns = nil
+		f.patternColoring = nil
+		f.processMessage = default_processMessage
+	}
+}
+
+// SetPatternColoring sets the color map and the patterns using them (any pattern matching '[' must be first).
+func (f* TemplateFormatter) SetPatternColoring(colors map[string]string, patterns []PatternColor) {
+	f.patternColoringPatterns = patterns
+	f.patternColoring = colors
+	f.processMessage = makeProcessor(f.patternColoring, f.patternColoringPatterns)
+}
+
+func makeProcessor(colors map[string]string, patterns []PatternColor) func(m, c string)string {
+	return func(m string, baseColor string) string {
+		repl := "$1" + baseColor
+		for _, colPtn := range patterns {
+			if color, exists := colors[colPtn.color]; exists {
+				m = colPtn.pattern.ReplaceAllString(m, color + repl)
+			}
+		}
+		return m
+	}
 }
 
 // SetFormat setts the formatters template string format.
@@ -196,12 +229,18 @@ func (f *TemplateFormatter) Format(r *Record) ([]byte, error) {
 	width := 0
 
 	colorSet := false
+	var lineColor string
 	if f.levelColoring != nil {
-		if color, ok := f.levelColoring[r.Level]; ok {
-			parts = append(parts, color)
+		var exists bool
+		if lineColor, exists = f.levelColoring[r.Level]; exists {
+			parts = append(parts, lineColor)
 			colorSet = true
+		} else {
+			lineColor = "\x1b[0m"
 		}
 	}
+
+	var processedMessage string
 
 	for _, token := range f.formatTokens {
 		switch token := token.(type) {
@@ -223,7 +262,12 @@ func (f *TemplateFormatter) Format(r *Record) ([]byte, error) {
 			case token == tfLevel:
 				s = LevelName(r.Level)
 			case token == tfMessage:
-				s = r.Message
+				if len(processedMessage) > 0 {
+					s = processedMessage
+				} else if len(r.Message) > 0 {
+					processedMessage = f.processMessage(r.Message, lineColor)
+					s = processedMessage
+				}
 			case token&tfFieldWidthMask > 0:
 				width = ((token & tfFieldWidthMask) >> tfFieldWidthShift)
 				if (token & tfAlignRight) > 0 {
@@ -256,7 +300,7 @@ func (f *TemplateFormatter) Format(r *Record) ([]byte, error) {
 	return []byte(strings.Join(parts, "")), nil
 }
 
-func (f *TemplateFormatter) formatTime(t time.Time, resolution... int) string {
+func (f *TemplateFormatter) formatTime(t time.Time, resolution ...int) string {
 	ts := fmt.Sprintf("%4d-%02d-%02d %02d:%02d:%02d", t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second())
 
 	if len(resolution) == 1 && resolution[0] == 1000 {
