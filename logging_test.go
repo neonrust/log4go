@@ -1,33 +1,30 @@
-package log4go_test
+package log4go
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"os"
-	"time"
-	"bytes"
-	"bufio"
 	"strings"
 	"testing"
-
-	"../../log4go"
+	"time"
 )
-
 
 func TestOne(t *testing.T) {
 	var buf bytes.Buffer
 
-	log4go.BasicConfig(log4go.BasicConfigOpts{
-		Level:  log4go.DEBUG,
+	BasicConfig(BasicConfigOpts{
+		Level:  DEBUG,
 		Writer: &buf,
 	})
 
-	log := log4go.GetLogger("test")
+	log := GetLogger("test")
 
-	for idx := 0; idx < 100; idx ++ {
+	for idx := 0; idx < 100; idx++ {
 		log.Info("test message %d", idx)
 	}
 
-	log4go.Shutdown()
+	Shutdown()
 
 	foundLast := false
 	scanner := bufio.NewScanner(&buf)
@@ -39,29 +36,28 @@ func TestOne(t *testing.T) {
 		}
 	}
 
-	if ! foundLast {
+	if !foundLast {
 		t.Errorf("last message not found (output len: %d)", buf.Len())
 	}
 }
 
 func TestOnlyChildLogger(t *testing.T) {
 
-	log4go.GetLogger().RemoveHandlers() // no logging from root logger
-
+	GetLogger().RemoveHandlers() // no logging from root logger
 
 	var buf bytes.Buffer
 	fp := &buf
 	//fp, _ := os.OpenFile("TestOnlyChildLogger.log", os.O_CREATE | os.O_TRUNC, 0664)
-	handler, _ := log4go.NewStreamHandler(fp)
-	fmt, _ := log4go.NewTemplateFormatter("{name} {level} {message}")
+	handler, _ := NewStreamHandler(fp)
+	fmt, _ := NewTemplateFormatter("{name} {level} {message}")
 	handler.SetFormatter(fmt)
-	log := log4go.GetLogger("test")
+	log := GetLogger("test")
 	log.AddHandler(handler)
-	log.SetLevel(log4go.INFO)  // otherwise it will inherit root's WARNING (the default)
+	log.SetLevel(INFO) // otherwise it will inherit root's WARNING (the default)
 
 	log.Info("test message 99")
 
-	log4go.Shutdown()
+	Shutdown()
 
 	foundLast := false
 	scanner := bufio.NewScanner(&buf)
@@ -73,25 +69,24 @@ func TestOnlyChildLogger(t *testing.T) {
 		}
 	}
 
-	if ! foundLast {
+	if !foundLast {
 		t.Errorf("last message not found (output len: %d)", buf.Len())
 	}
 }
 
-
 func TestLevelFilter(t *testing.T) {
 	var buf bytes.Buffer
 
-	log4go.BasicConfig(log4go.BasicConfigOpts{
-		Level:  log4go.WARNING,
+	BasicConfig(BasicConfigOpts{
+		Level:  WARNING,
 		Writer: &buf,
 	})
 
-	log := log4go.GetLogger("test")
+	log := GetLogger("test")
 
 	log.Info("this will never appear in the log")
 
-	log4go.Shutdown()
+	Shutdown()
 
 	if buf.Len() != 0 {
 		t.Errorf("expected empty log, got %d bytes", buf.Len())
@@ -101,30 +96,29 @@ func TestLevelFilter(t *testing.T) {
 func TestNoHandlers(t *testing.T) {
 	var buf bytes.Buffer
 
-	log4go.BasicConfig(log4go.BasicConfigOpts{
-		Level:  log4go.DEBUG,
+	BasicConfig(BasicConfigOpts{
+		Level:  DEBUG,
 		Writer: &buf,
 	})
 
-	log4go.GetLogger().RemoveHandlers()
+	GetLogger().RemoveHandlers()
 
-	log := log4go.GetLogger("test")
+	log := GetLogger("test")
 
 	log.Info("this will never appear in the log")
 
-	log4go.Shutdown()
+	Shutdown()
 
 	if buf.Len() != 0 {
 		t.Errorf("expected empty log, got %d bytes", buf.Len())
 	}
 }
 
-
 func TestMulti(t *testing.T) {
 	var buf bytes.Buffer
 
-	log4go.BasicConfig(log4go.BasicConfigOpts{
-		Level:  log4go.DEBUG,
+	BasicConfig(BasicConfigOpts{
+		Level:  DEBUG,
 		Writer: &buf,
 	})
 
@@ -133,9 +127,9 @@ func TestMulti(t *testing.T) {
 	done := make(chan bool, width)
 
 	for idx := 0; idx < width; idx++ {
-		log := log4go.GetLogger(fmt.Sprintf("test%d", idx))
+		log := GetLogger(fmt.Sprintf("test%d", idx))
 
-		go func(log *log4go.Logger) {
+		go func(log *Logger) {
 			for idx := 0; idx < width; idx++ {
 				log.Info("test message %d", idx)
 			}
@@ -147,7 +141,7 @@ func TestMulti(t *testing.T) {
 		<-done
 	}
 
-	log4go.Shutdown()
+	Shutdown()
 
 	var foundLast int
 	scanner := bufio.NewScanner(&buf)
@@ -164,15 +158,13 @@ func TestMulti(t *testing.T) {
 	}
 }
 
-
-
 func BenchmarkAllLogged(b *testing.B) {
-	log4go.BasicConfig(log4go.BasicConfigOpts{
-		Level:    log4go.WARNING,  // thus all info-logs below will not be output
+	BasicConfig(BasicConfigOpts{
+		Level:    WARNING, // thus all info-logs below will not be output
 		FileName: "/dev/null",
 	})
 
-	log := log4go.GetLogger("test")
+	log := GetLogger("test")
 
 	//startTime := time.Now()
 
@@ -181,18 +173,18 @@ func BenchmarkAllLogged(b *testing.B) {
 	}
 
 	//duration := time.Now().Sub(startTime)
-	log4go.Shutdown()
+	Shutdown()
 
 	//printPerf(b.N, duration)
 }
 
 func BenchmarkNoneLogged(b *testing.B) {
-	log4go.BasicConfig(log4go.BasicConfigOpts{
-		Level:    log4go.WARNING,  // thus all info-logs below will not be output
+	BasicConfig(BasicConfigOpts{
+		Level:    WARNING, // thus all info-logs below will not be output
 		FileName: "/dev/null",
 	})
 
-	log := log4go.GetLogger("test")
+	log := GetLogger("test")
 
 	//startTime := time.Now()
 
@@ -200,15 +192,15 @@ func BenchmarkNoneLogged(b *testing.B) {
 		log.Info("test message %d", idx)
 	}
 
-	log4go.Shutdown()
+	Shutdown()
 	//duration := time.Now().Sub(startTime)
 
 	//printPerf(b.N, duration)
 }
 
 func BenchmarkMultiAllLogged(b *testing.B) {
-	log4go.BasicConfig(log4go.BasicConfigOpts{
-		Level:    log4go.DEBUG,
+	BasicConfig(BasicConfigOpts{
+		Level:    DEBUG,
 		FileName: "/dev/null",
 	})
 
@@ -219,9 +211,9 @@ func BenchmarkMultiAllLogged(b *testing.B) {
 	done := make(chan bool, width)
 
 	for idx := 0; idx < width; idx++ {
-		log := log4go.GetLogger(fmt.Sprintf("test%d", idx))
+		log := GetLogger(fmt.Sprintf("test%d", idx))
 
-		go func(log *log4go.Logger) {
+		go func(log *Logger) {
 			for idx := 0; idx < b.N; idx++ {
 				log.Info("test message %d", idx)
 			}
@@ -233,7 +225,7 @@ func BenchmarkMultiAllLogged(b *testing.B) {
 		<-done
 	}
 
-	log4go.Shutdown()
+	Shutdown()
 	duration := time.Now().Sub(startTime)
 
 	printPerf(width*b.N, duration)
