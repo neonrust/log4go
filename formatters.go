@@ -55,6 +55,7 @@ const (
 	tfTime = iota
 	tfTimeMilliseconds
 	tfName
+	tfBaseName
 	tfLevel
 	tfMessage
 
@@ -67,11 +68,12 @@ const (
 )
 
 var tokenToValue = map[string]int{
-	"time":    tfTime,
-	"timems":  tfTimeMilliseconds,
-	"name":    tfName,
-	"level":   tfLevel,
-	"message": tfMessage,
+	"time":     tfTime,
+	"timems":   tfTimeMilliseconds,
+	"name":     tfName,
+	"basename": tfBaseName,
+	"level":    tfLevel,
+	"message":  tfMessage,
 }
 
 var templatePtn *regexp.Regexp
@@ -258,6 +260,12 @@ func (f *TemplateFormatter) Format(r *Record) ([]byte, error) {
 					s = "root"
 				} else {
 					s = r.Name
+				}
+			case token == tfBaseName:
+				if len(r.Name) == 0 {
+					s = "root"
+				} else {
+					s = strings.Split(r.Name, "/")[-1]
 				}
 			case token == tfLevel:
 				s = LevelName(r.Level)
