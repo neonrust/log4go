@@ -12,8 +12,8 @@ type Handler interface {
 	Handle(rec *Record) error
 	SetFormatter(formatter Formatter)
 	Formatter() Formatter
-	SetLevel(level int)
-	Level() int
+	SetLevel(level Level)
+	Level() Level
 	Shutdown()
 }
 
@@ -21,7 +21,7 @@ type Handler interface {
 type StreamHandler struct {
 	writer        io.Writer
 	formatter     Formatter
-	level         int
+	level         Level
 	commitChannel chan Record
 	committerDone chan bool
 	shutdown      bool
@@ -58,11 +58,13 @@ func NewFileHandler(fileName string, append bool) (*StreamHandler, error) {
 	return NewStreamHandler(writer)
 }
 
-func (h *StreamHandler) SetLevel(level int) {
+// SetLevel sets the level the handler will (at least) handle.
+func (h *StreamHandler) SetLevel(level Level) {
 	h.level = level
 }
 
-func (h *StreamHandler) Level() int {
+// Level returns the level previously set (or NOTSET if not set).
+func (h *StreamHandler) Level() Level {
 	return h.level
 }
 

@@ -21,7 +21,7 @@ type TemplateFormatter struct {
 	formatString string
 	formatTokens []interface{}
 
-	levelColoring map[int]string
+	levelColoring map[Level]string
 
 	patternColoringPatterns []PatternColor
 	patternColoring         map[string]string
@@ -77,13 +77,13 @@ var tokenToValue = map[string]int{
 var templatePtn *regexp.Regexp
 var templateSpecPtn *regexp.Regexp
 
-var defaultLevelColoring map[int]string
+var defaultLevelColoring map[Level]string
 var defaultPatternColoringPatterns []PatternColor
 var defaultPatternColoring map[string]string
 
 
 func init() {
-	defaultLevelColoring = map[int]string{
+	defaultLevelColoring = map[Level]string{
 		FATAL:   color.RedBg + color.Bold,
 		ERROR:   color.Red,
 		WARNING: color.Yellow,
@@ -113,7 +113,7 @@ func (f *TemplateFormatter) EnableLevelColoring(enable bool) {
 }
 
 // SetLevelColoring specifies how to color log lines based on level, nil to disable.
-func (f *TemplateFormatter) SetLevelColoring(levelToColors map[int]string) {
+func (f *TemplateFormatter) SetLevelColoring(levelToColors map[Level]string) {
 	f.levelColoring = levelToColors
 }
 
