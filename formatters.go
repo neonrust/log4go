@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"bitbucket.org/tatsujin/log4go/color"
+	"./color"
 )
 
 // Formatter interface for formatters.
