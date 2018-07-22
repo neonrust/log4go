@@ -26,15 +26,16 @@ type TemplateFormatter struct {
 	patternColoringPatterns []PatternColor
 	patternColoring         map[string]string
 
-	processMessage func(m, c string)string
+	processMessage func(m, c string) string
 }
 
+// PatternColor pairs a color and a match pattern.
 type PatternColor struct {
-	color string
+	color   string
 	pattern *regexp.Regexp
 }
 
-func default_processMessage(m, c string) string {
+func defaultProcessMessage(m, c string) string {
 	return m
 }
 
@@ -42,7 +43,7 @@ func default_processMessage(m, c string) string {
 func NewTemplateFormatter(format string) (*TemplateFormatter, error) {
 	fmt := new(TemplateFormatter)
 	fmt.formatString = format
-	fmt.processMessage = default_processMessage
+	fmt.processMessage = defaultProcessMessage
 
 	err := fmt.SetFormat(format)
 	if err != nil {
@@ -67,6 +68,7 @@ const (
 	tfAlignLeft  = 0 // i.e. the default
 )
 
+// TODO: or string->func(Record) string
 var tokenToValue = map[string]int{
 	"time":     tfTime,
 	"timems":   tfTimeMilliseconds,
@@ -83,7 +85,6 @@ var defaultLevelColoring map[Level]string
 var defaultPatternColoringPatterns []PatternColor
 var defaultPatternColoring map[string]string
 
-
 func init() {
 	defaultLevelColoring = map[Level]string{
 		FATAL:   color.RedBg + color.Bold,
@@ -94,13 +95,13 @@ func init() {
 	}
 
 	defaultPatternColoringPatterns = []PatternColor{
-		{ "brackets", regexp.MustCompile(`([<>\]\(\)\{\}]|\[)`) },  // all kinds of brackets
-		{ "punct", regexp.MustCompile(`([-/\*\+\.,:])`) },
-		{ "quoted", regexp.MustCompile(`('[^']+'|"[^"]+")`) }, // quoted strings
+		{"brackets", regexp.MustCompile(`([<>\]\(\)\{\}]|\[)`)}, // all kinds of brackets
+		{"punct", regexp.MustCompile(`([-/\*\+\.,:])`)},
+		{"quoted", regexp.MustCompile(`('[^']+'|"[^"]+")`)}, // quoted strings
 	}
 	defaultPatternColoring = map[string]string{
 		"brackets": color.Purple,
-		"punct": color.Blue,
+		"punct":    color.Blue,
 		"quoted":   color.Green,
 	}
 }
@@ -129,23 +130,23 @@ func (f *TemplateFormatter) EnablePatternColoring(enable bool) {
 	} else {
 		f.patternColoringPatterns = nil
 		f.patternColoring = nil
-		f.processMessage = default_processMessage
+		f.processMessage = defaultProcessMessage
 	}
 }
 
 // SetPatternColoring sets the color map and the patterns using them (any pattern matching '[' must be first).
-func (f* TemplateFormatter) SetPatternColoring(colors map[string]string, patterns []PatternColor) {
+func (f *TemplateFormatter) SetPatternColoring(colors map[string]string, patterns []PatternColor) {
 	f.patternColoringPatterns = patterns
 	f.patternColoring = colors
 	f.processMessage = makeProcessor(f.patternColoring, f.patternColoringPatterns)
 }
 
-func makeProcessor(colors map[string]string, patterns []PatternColor) func(m, c string)string {
+func makeProcessor(colors map[string]string, patterns []PatternColor) func(m, c string) string {
 	return func(m string, baseColor string) string {
 		repl := "$1" + baseColor
 		for _, colPtn := range patterns {
 			if color, exists := colors[colPtn.color]; exists {
-				m = colPtn.pattern.ReplaceAllString(m, color + repl)
+				m = colPtn.pattern.ReplaceAllString(m, color+repl)
 			}
 		}
 		return m
