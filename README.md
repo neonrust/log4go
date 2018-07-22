@@ -1,4 +1,4 @@
-# log4go #
+A# log4go #
 
 Simple logging for Go akin to the well-known log4j.
 The API was modeled after Python's [logging](https://docs.python.org/3/library/logging.html) module.
@@ -9,8 +9,8 @@ Most things are kept as simple as possible. For example, the (currently) only wa
 
 Hierarchies of loggers may be created. Slightly different from log4j and Python's logging module, the hierarchy is formatted akin to a file system path: `base/child/grandchild` (log4j uses dots as separator; e.g. `base.child.grandchild`). Root logger has no name (or rather, an empty string).
 
-Each `Logger` instance has at least one `Handler` associated to it.
-The `Logger` might have a `Level` set, to limit the logging to that level and above. However, by default it has no level set, which means it will use the level from first ancestor that has it set.
+Any `Logger` instance may have any number of `Handler` associated to it. When a log message is issued, it starts at the `Logger` instance used and up towards the root, passing it to all `Handler` instances it finds along the way.
+The `Logger` might have a `Level` set; dropping all messages that has a logging level below that level. However, by default it has no level set, which means it will use the level from the first ancestor that has it set. If none have level set, `WARNING` is the default.
 
 ## Handlers ##
 
