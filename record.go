@@ -6,6 +6,6 @@ import "time"
 type Record struct {
 	Time    time.Time
 	Name    string
-	Level   int
+	Level   Level
 	Message string
 }
