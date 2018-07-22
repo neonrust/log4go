@@ -7,29 +7,29 @@ Most things are kept as simple as possible. For example, the (currently) only wa
 
 ## Loggers ##
 
-Hierarchies of loggers may be created. Slightly different from log4j and Python's logging module, the hierarchy is formatted akin to a file system path: `base/child/grandchild` (log4j uses dots as separator; e.g. `base.child.grandchild`). Root logger has no name (or rather, an empty string).
+Hierarchies of loggers may be created. The full logger name is formatted slightly different from log4j and Python's logging module; more akin to a file system path: `base/child/grandchild` (log4j uses dots as separator; e.g. `base.child.grandchild`). The root logger has no name (or rather, an empty string).
 
-Any `Logger` instance may have any number of `Handler` associated to it. When a log message is issued, it starts at the `Logger` instance used and up towards the root, passing it to all `Handler` instances it finds along the way.
+Any `Logger` instance may have any number of `Handler` associated to it. When a log record is issued, it starts at the `Logger` instance used and up towards the root, passing it to all `Handler` instances it finds along the way.
 The `Logger` might have a `Level` set; dropping all messages that has a logging level below that level. However, by default it has no level set, which means it will use the level from the first ancestor that has it set. If none have level set, `WARNING` is the default.
 
 ## Handlers ##
 
-The handler writes a `[]byte` object the best way it knows.
+A handler writes a log record the way it knows how, where/however that may be.
 
 Included handlers:
 
 * `NewStreamHandler`
 * `NewFileHandler`
 
-Each handler has a formatter associated to it.
+Each handler has a formatter associated to it (it's useless without it).
 
 ## Formatters ##
 
-The formatter formats a log record into a `[]byte` object.
+A formatter encodes a log record into a `[]byte` object (for the handler to then write).
 
 Included formatters:
 
-* `NewTemplateFormatter`: Formats the message based on a template string. See below for syntax.
+* `TemplateFormatter`: Formats the message based on a template string. See below for syntax.
 
 
 
