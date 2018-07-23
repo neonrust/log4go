@@ -2,6 +2,7 @@
 package log4go
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"runtime"
@@ -105,39 +106,50 @@ func BasicConfig(opts BasicConfigOpts) error {
 
 // Shutdown shuts down all internals of log4go.
 func Shutdown() {
-	// close all commit channels (depth-first), then wait for the commiters to finish (somehow) ?
+	// close all commit channels
 
-	shutdownHandlers(rootLogger)
+	// first collect all unique handlers
+	uniqueHandlers := make(map[string]Handler, 10)
+	collectHandlers(rootLogger, uniqueHandlers)
+	allHandlers := make([]Handler, 0, len(uniqueHandlers))
+	for _, h := range uniqueHandlers {
+		allHandlers = append(allHandlers, h)
+	}
+	// then shut them all down
+	shutdownHandlers(allHandlers)
 
 	runtime.Gosched()
 	runtime.GC()
 	syscall.Sync()
 
-	// nice synchronization there, uncle Bob!
+	// TODO: wait for the commiters to finish (somehow)
+
+	// nice synchronization there, Bob!
 	time.Sleep(100 * time.Millisecond)
 }
 
-func shutdownHandlers(log *Logger) {
-	// TODO: this will call handler.Shutdown() multiple times on the same handler
-	//   if the same handler is used multiple times
-	//   this should be 2-pass:
-	//     1. collect all unique handlers
-	//     2. then call Shutdown() on those
-
+func collectHandlers(log *Logger, uniqueHandlers map[string]Handler) {
 	if log == nil {
 		return
 	}
 	if log.children != nil {
-		// recurse down children, depth-first
 		for _, child := range log.children {
-			shutdownHandlers(child)
+			collectHandlers(child, uniqueHandlers)
 		}
 	}
 
 	if log.handlers != nil {
-		for _, handler := range log.handlers {
-			handler.Shutdown()
+		for _, h := range log.handlers {
+			// use the pointer address as the unique key
+			hkey := fmt.Sprintf("%p", h)
+
+			uniqueHandlers[hkey] = h // might already exists, but it'll be the same handler
 		}
+	}
+}
+func shutdownHandlers(allHandlers []Handler) {
+	for _, h := range allHandlers {
+		h.Shutdown()
 	}
 }
 
