@@ -94,7 +94,7 @@ func (h *StreamHandler) committer() {
 	for {
 		select {
 		case rec := <-h.commitChannel:
-			msg, err := ff.Format(&rec)
+			msg, err := h.Formatter().Format(&rec)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "log4go.StreamHandler: formatter error %v\n", err)
 				continue
