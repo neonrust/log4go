@@ -4,9 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"runtime"
 	"syscall"
-	"sync/atomic"
 )
 
 // Handler handles the formatted log events.
@@ -81,7 +79,7 @@ func (h *StreamHandler) Handle(rec *Record) error {
 func (h *StreamHandler) Shutdown() {
 	if !h.shutdown {
 		h.shutdown = true
-		h.committerStop <- struct{} // unbuffered; when this returns the committer has stopped
+		h.committerStop <- struct{}{} // unbuffered; when this returns the committer has stopped
 
 		close(h.committerStop)
 		close(h.commitChannel) // TODO: see Handle() or never close this channel?
@@ -93,8 +91,6 @@ func (h *StreamHandler) onPreWrite() {
 }
 
 func (h *StreamHandler) committer() {
-	ff := h.Formatter()
-
 	for {
 		select {
 		case rec := <-h.commitChannel:
@@ -107,7 +103,7 @@ func (h *StreamHandler) committer() {
 			msg = append(msg, '\n')
 
 			h.onPreWrite()
-			
+
 			if _, err = h.writer.Write(msg); err != nil {
 				fmt.Fprintf(os.Stderr, "log4go.StreamHandler: write error: %v\n", err)
 			}
@@ -150,7 +146,7 @@ func NewWatchedFileHandler(filename string, append bool) (*WatchedFileHandler, e
 		return nil, err
 	}
 
-	s, err := NewStreamHandler(wfh.fp, append)
+	s, err := NewStreamHandler(wfh.fp)
 	if err != nil {
 		return nil, err
 	}
@@ -195,19 +191,22 @@ func (h *WatchedFileHandler) open() error {
 		flags |= os.O_TRUNC
 	}
 
-	fp, err = os.OpenFile(h.filename, flags, 0664)
+	fp, err := os.OpenFile(h.filename, flags, 0664)
 	if err != nil {
 		return err
 	}
 	h.writer = fp
-	
+
 	h.dev, h.inode = h.statFile()
+
+	return nil
 }
 
 func (h WatchedFileHandler) statFile() (uint64, uint64) {
 	info, _ := os.Stat(h.filename)
-	if stat, err := info.Sys().(*syscall.Stat_t); err != nil {
+	if stat, ok := info.Sys().(*syscall.Stat_t); !ok {
 		return 0, 0
+	} else {
+		return stat.Dev, stat.Ino
 	}
-	return stat.Dev, stat.Ino
 }
