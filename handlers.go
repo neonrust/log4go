@@ -116,6 +116,10 @@ func (h *StreamHandler) committer() {
 
 // SetFormatter sets the handler's Formatter.
 func (h *StreamHandler) SetFormatter(formatter Formatter) {
+	if formatter == nil {
+		fmt.Fprintln(os.Stderr, "log4go.StreamHandler: setting nil formatter")
+	}
+
 	h.formatter = formatter
 }
 
