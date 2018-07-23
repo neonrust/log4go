@@ -266,7 +266,8 @@ func (f *TemplateFormatter) Format(r *Record) ([]byte, error) {
 				if len(r.Name) == 0 {
 					s = "root"
 				} else {
-					s = strings.Split(r.Name, "/")[-1]
+					parts := strings.Split(r.Name, "/")
+					s = parts[len(parts)-1]
 				}
 			case token == tfLevel:
 				s = LevelName(r.Level)
