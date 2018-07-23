@@ -84,7 +84,7 @@ func (l *Logger) Level() Level {
 	return l.level
 }
 
-ErrNoFormatter := errors.New("handler has no formatter")
+var ErrNoFormatter = errors.New("handler has no formatter")
 
 // AddHandler adds a log record handler.
 func (l *Logger) AddHandler(handler Handler) error {
