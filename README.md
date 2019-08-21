@@ -85,7 +85,7 @@ subLog.Info("specific stuff")
 ```
 
 The above will output:
-```go
+```
 2016-09-23 11:22:33 root       INFO     Hello, log4go!
 2016-09-23 11:22:33 mylog      ERROR    Awesomeness ahead
 2016-09-23 11:22:33 mylog      WARNING  dangerously useful
