@@ -53,8 +53,7 @@ Supported tokens are:
 
 ## Example ##
 
-```
-:::go
+```go
 log4go.BasicConfig(log4go.BasicConfigOpts{
     Level: log4go.INFO,
     FileName: "awesome.log",
@@ -86,9 +85,10 @@ subLog.Info("specific stuff")
 ```
 
 The above will output:
-```
+```go
 2016-09-23 11:22:33 root       INFO     Hello, log4go!
 2016-09-23 11:22:33 mylog      ERROR    Awesomeness ahead
 2016-09-23 11:22:33 mylog      WARNING  dangerously useful
+2016-09-23 11:22:33 mylog      INFO     printf-formatting works, of course
 2016-09-23 11:22:33 mylog/cool INFO     specific stuff
 ```
