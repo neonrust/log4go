@@ -121,7 +121,7 @@ func (l *Logger) Handlers() []Handler {
 }
 
 // Log submits a Log message using specific level and message.
-func (l *Logger) Log(lvl Level, stage bool, message string, args ...interface{}) {
+func (l *Logger) log(lvl Level, stage bool, message string, args ...interface{}) {
 	if lvl < l.Level() {
 		return
 	}
@@ -161,26 +161,6 @@ func (l *Logger) Log(lvl Level, stage bool, message string, args ...interface{})
 	}
 }
 
-// Fatal logs message with FATAL level (also does os.Exit(1))
-func (l *Logger) Fatal(message string, args ...interface{}) {
-	if len(l.staged) > 0 {
-		l.flushStaged()
-	}
-
-	l.Log(FATAL, false, message, args...)
-
-	Shutdown()
-	os.Exit(1)
-}
-
-// Error logs message with ERROR level.
-func (l *Logger) Error(message string, args ...interface{}) {
-	if len(l.staged) > 0 {
-		l.flushStaged()
-	}
-	l.Log(ERROR, false, message, args...)
-}
-
 func (l *Logger) flushStaged() {
 	for _, r := range l.staged {
 		for _, h := range l.handlers {
@@ -188,24 +168,6 @@ func (l *Logger) flushStaged() {
 		}
 	}
 	l.staged = l.staged[:0]
-}
-
-// Warning logs message with WARNING level.
-func (l *Logger) Warning(message string, args ...interface{}) {
-	l.staged = l.staged[:0]
-	l.Log(WARNING, false, message, args...)
-}
-
-// Info logs message with INFO level.
-func (l *Logger) Info(message string, args ...interface{}) {
-	l.staged = l.staged[:0]
-	l.Log(INFO, false, message, args...)
-}
-
-// Debug logs message with DEBUG level.
-func (l *Logger) Debug(message string, args ...interface{}) {
-	l.staged = l.staged[:0]
-	l.Log(DEBUG, false, message, args...)
 }
 
 // CrashOpts controls how Crash operates.
@@ -285,17 +247,70 @@ func (l *Logger) Crash(err interface{}, stack []byte, opts ...CrashOpts) {
 	}
 }
 
-// StageWarning stages a message with WARNING level until Error() or Fatal().
+// ------------------------------------------------
+
+// Fatal logs message with FATAL level (also does os.Exit(1)), after flushing staged messages.
+func (l *Logger) Fatal(message string, args ...interface{}) {
+	if len(l.staged) > 0 {
+		l.flushStaged()
+	}
+
+	l.log(FATAL, false, message, args...)
+
+	Shutdown()
+	os.Exit(1)
+}
+
+// Error logs message with ERROR level, after flushing staged messages.
+func (l *Logger) Error(message string, args ...interface{}) {
+	if len(l.staged) > 0 {
+		l.flushStaged()
+	}
+	l.log(ERROR, false, message, args...)
+}
+
+// Warning logs message with WARNING level (clears staged messages).
+func (l *Logger) Warning(message string, args ...interface{}) {
+	l.staged = l.staged[:0]
+	l.log(WARNING, false, message, args...)
+}
+
+// Info logs message with INFO level (clears staged messages).
+func (l *Logger) Info(message string, args ...interface{}) {
+	l.staged = l.staged[:0]
+	l.log(INFO, false, message, args...)
+}
+
+// Debug logs message with DEBUG level (clears staged messages).
+func (l *Logger) Debug(message string, args ...interface{}) {
+	l.staged = l.staged[:0]
+	l.log(DEBUG, false, message, args...)
+}
+
+// Log logs message with given level (clears staged messages).
+func (l *Logger) Log(lvl Level, message string, args ...interface{}) {
+	l.staged = l.staged[:0]
+	l.log(lvl, false, message, args...)
+}
+
+// ------------------------------------------------
+
+// StageWarning stages a message with WARNING level, flushed by Error() or Fatal().
 func (l *Logger) StageWarning(message string, args ...interface{}) {
-	l.Log(WARNING, true, message, args...)
+	l.log(WARNING, true, message, args...)
 }
 
-// StageInfo stages a message with INFO level until Error() or Fatal().
+// StageInfo stages a message with INFO level, flushed by Error() or Fatal().
 func (l *Logger) StageInfo(message string, args ...interface{}) {
-	l.Log(INFO, true, message, args...)
+	l.log(INFO, true, message, args...)
 }
 
-// StageDebug stages a message with DEBUG level until Error() or Fatal().
+// StageDebug stages a message with DEBUG level, flushed by Error() or Fatal().
 func (l *Logger) StageDebug(message string, args ...interface{}) {
-	l.Log(DEBUG, true, message, args...)
+	l.log(DEBUG, true, message, args...)
+}
+
+// StagedLog stages a message with given level, flushed by Error() or Fatal().
+func (l *Logger) StageLog(lvl Level, message string, args ...interface{}) {
+	l.log(lvl, true, message, args...)
 }
