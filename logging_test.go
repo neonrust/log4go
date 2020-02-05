@@ -5,7 +5,9 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -20,18 +22,18 @@ func TestOne(t *testing.T) {
 
 	log := GetLogger("test")
 
-	for idx := 0; idx < 100; idx++ {
+	for idx := 1; idx <= 100; idx++ {
 		log.Info("test message %d", idx)
 	}
 
 	Shutdown()
 
-	foundLast := false
 	scanner := bufio.NewScanner(&buf)
+	foundLast := false
 
 	for scanner.Scan() {
 		line := scanner.Text()
-		if strings.HasSuffix(line, "test message 99") {
+		if strings.HasSuffix(line, "test message 100") {
 			foundLast = true
 		}
 	}
@@ -55,22 +57,208 @@ func TestOnlyChildLogger(t *testing.T) {
 	log.AddHandler(handler)
 	log.SetLevel(INFO) // otherwise it will inherit root's WARNING (the default)
 
-	log.Info("test message 99")
+	text := "test message 99"
+	log.Info(text)
 
 	Shutdown()
 
-	foundLast := false
 	scanner := bufio.NewScanner(&buf)
+	foundLast := false
 
 	for scanner.Scan() {
 		line := scanner.Text()
-		if strings.HasSuffix(line, "test message 99") {
+		if strings.HasSuffix(line, text) {
 			foundLast = true
 		}
 	}
 
 	if !foundLast {
 		t.Errorf("last message not found (output len: %d)", buf.Len())
+	}
+}
+
+func TestTimeFormatS(t *testing.T) {
+	var buf bytes.Buffer
+
+	BasicConfig(BasicConfigOpts{
+		Level:  INFO,
+		Writer: &buf,
+		Format: "{time} {message}",
+	})
+
+	log := GetLogger("test")
+
+	log.Info("test message")
+
+	Shutdown()
+
+	scanner := bufio.NewScanner(&buf)
+	found := false
+
+	ptn := regexp.MustCompile(`^\d{4}(-\d\d){2} \d\d(:\d\d){2}$`)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasSuffix(line, " test message") {
+			found = true
+			line = line[:len(line)-13] // cut off the message text
+			if len(ptn.FindString(line)) == 0 {
+				t.Errorf("Time format (%s) was not as expected (%s)", line, ptn.String())
+			}
+		}
+	}
+
+	if !found {
+		t.Errorf("last message not found (output len: %d)", buf.Len())
+		print_last_lines(t, buf, 10)
+	}
+}
+
+func TestTimeFormatMS(t *testing.T) {
+	var buf bytes.Buffer
+
+	BasicConfig(BasicConfigOpts{
+		Level:  INFO,
+		Writer: &buf,
+		Format: "{timems} {message}",
+	})
+
+	log := GetLogger("test")
+
+	log.Info("test message")
+
+	Shutdown()
+
+	scanner := bufio.NewScanner(&buf)
+	found := false
+
+	ptn := regexp.MustCompile(`^\d{4}(-\d\d){2} \d\d(:\d\d){2}.\d{3}$`)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasSuffix(line, " test message") {
+			found = true
+			line = line[:len(line)-13] // cut off the message text
+			if len(ptn.FindString(line)) == 0 {
+				t.Errorf("Time format (%s) was not as expected (%s)", line, ptn.String())
+			}
+		}
+	}
+
+	if !found {
+		t.Errorf("last message not found (output len: %d)", buf.Len())
+		print_last_lines(t, buf, 10)
+	}
+}
+
+func TestTimeFormatUS(t *testing.T) {
+	var buf bytes.Buffer
+
+	BasicConfig(BasicConfigOpts{
+		Level:  INFO,
+		Writer: &buf,
+		Format: "{timeus} {message}",
+	})
+
+	log := GetLogger("test")
+
+	log.Info("test message")
+
+	Shutdown()
+
+	scanner := bufio.NewScanner(&buf)
+	found := false
+
+	ptn := regexp.MustCompile(`^\d{4}(-\d\d){2} \d\d(:\d\d){2}.\d{6}$`)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasSuffix(line, " test message") {
+			found = true
+			line = line[:len(line)-13] // cut off the message text
+			if len(ptn.FindString(line)) == 0 {
+				t.Errorf("Time format (%s) was not as expected (%s)", line, ptn.String())
+			}
+		}
+	}
+
+	if !found {
+		t.Errorf("last message not found (output len: %d)", buf.Len())
+		print_last_lines(t, buf, 10)
+	}
+}
+
+func TestStaged(t *testing.T) {
+	var buf bytes.Buffer
+
+	BasicConfig(BasicConfigOpts{
+		Level:  DEBUG,
+		Writer: &buf,
+		Format: "{timeus} {message}",
+	})
+
+	log := GetLogger("test")
+
+	log.StageDebug("test message debug")
+	log.StageInfo("test message info")
+	log.Error("test message error")
+
+	Shutdown()
+
+	scanner := bufio.NewScanner(&buf)
+	var found uint8
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasSuffix(line, "test message debug") {
+			found |= 0x001
+		}
+		if strings.HasSuffix(line, "test message info") {
+			found |= 0b010
+		}
+		if strings.HasSuffix(line, "test message error") {
+			found |= 0b100
+		}
+	}
+
+	if found != 0b111 {
+		t.Errorf("not all messages were found: 0b%03b, expected 0b111 (output len: %d)", found, buf.Len())
+		print_last_lines(t, buf, 10)
+	}
+}
+
+func TestStagedUnflushed(t *testing.T) {
+	var buf bytes.Buffer
+
+	BasicConfig(BasicConfigOpts{
+		Level:  DEBUG,
+		Writer: &buf,
+		Format: "{timeus} {message}",
+	})
+
+	log := GetLogger("test")
+
+	log.StageDebug("test message debug")
+	log.StageInfo("test message info")
+
+	Shutdown()
+
+	scanner := bufio.NewScanner(&buf)
+	var found uint8
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasSuffix(line, "test message debug") {
+			found |= 0x001
+		}
+		if strings.HasSuffix(line, "test message info") {
+			found |= 0b010
+		}
+	}
+
+	if found != 0 {
+		t.Errorf("messages were found: 0b%03b, expected 0 (output len: %d)", found, buf.Len())
+		print_last_lines(t, buf, 10)
 	}
 }
 
@@ -90,6 +278,7 @@ func TestLevelFilter(t *testing.T) {
 
 	if buf.Len() != 0 {
 		t.Errorf("expected empty log, got %d bytes", buf.Len())
+		print_last_lines(t, buf, 10)
 	}
 }
 
@@ -111,6 +300,7 @@ func TestNoHandlers(t *testing.T) {
 
 	if buf.Len() != 0 {
 		t.Errorf("expected empty log, got %d bytes", buf.Len())
+		print_last_lines(t, buf, 10)
 	}
 }
 
@@ -124,7 +314,8 @@ func TestMulti(t *testing.T) {
 
 	width := 100
 
-	done := make(chan bool, width)
+	wg := &sync.WaitGroup{}
+	wg.Add(width)
 
 	for idx := 0; idx < width; idx++ {
 		log := GetLogger(fmt.Sprintf("test%d", idx))
@@ -133,18 +324,16 @@ func TestMulti(t *testing.T) {
 			for idx := 0; idx < width; idx++ {
 				log.Info("test message %d", idx)
 			}
-			done <- true
+			wg.Done()
 		}(log)
 	}
 
-	for idx := 0; idx < width; idx++ {
-		<-done
-	}
+	wg.Wait()
 
 	Shutdown()
 
-	var foundLast int
 	scanner := bufio.NewScanner(&buf)
+	var foundLast int
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -241,4 +430,23 @@ func printPerf(n int, d time.Duration) {
 		secs*1e6/float64(n),
 	)
 
+}
+
+func print_last_lines(t *testing.T, buf bytes.Buffer, count int) {
+	contents := buf.String()
+	lines := strings.Split(contents, "\n")
+
+	lines = lines[:len(lines)-1] // last item is an empty string
+
+	var last []string
+	if len(lines) > count {
+		last = lines[len(lines)-count:]
+	} else {
+		last = lines
+	}
+	t.Errorf("Last %d lines of content:\n", count)
+	for _, line := range last {
+		t.Error(line)
+	}
+	t.Error("END content")
 }
