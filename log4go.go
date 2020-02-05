@@ -54,7 +54,7 @@ func BasicConfig(opts BasicConfigOpts) error {
 		opts.Level = WARNING
 	}
 	if len(opts.Format) == 0 {
-		opts.Format = "{time} {name<20} {level<8} {message}"
+		opts.Format = "{timems} {name<20} {level<8} {message}"
 	}
 
 	if len(opts.Handlers) == 0 {
