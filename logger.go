@@ -17,7 +17,7 @@ type Logger struct {
 	parent   *Logger
 	children []*Logger
 
-	staged []*Record
+	staged []Record
 }
 
 func newLogger(parent *Logger, name string, lvl Level, handlers ...Handler) *Logger {
@@ -126,48 +126,59 @@ func (l *Logger) log(lvl Level, stage bool, message string, args ...interface{})
 		return
 	}
 
-	var record *Record
+	var rec *Record // a record will be created if & when it's necessary
 
 	// traverse up this logger's ancestors, calling all handlers along the way
 	logger := l
 	for logger != nil {
 		if len(logger.handlers) > 0 { // we need handlers!
-			if record == nil {
-				record = recordPool.Get().(*Record)
+			// ok, now we need to construct a Record for this message
+			if rec == nil {
+				rec = recordPool.Get().(*Record)
 
-				record.Time = time.Now()
-				record.Name = l.name
-				record.Level = lvl
-				record.Message = fmt.Sprintf(message, args...)
+				rec.Time = time.Now()
+				rec.Name = l.name
+				rec.Level = lvl
+				rec.Message = fmt.Sprintf(message, args...)
 			}
 
 			if stage {
-				if l.staged == nil {
-					l.staged = make([]*Record, 0, 10)
+				if logger.staged == nil {
+					logger.staged = make([]Record, 0, 10)
 				}
-				l.staged = append(l.staged, record)
+				logger.staged = append(logger.staged, *rec)
 			} else {
 				// invoke all handlers
 				for _, handler := range logger.handlers {
-					handler.Handle(record)
+					handler.Handle(rec)
 				}
 			}
 		}
 		logger = logger.parent
 	}
 
-	if record != nil {
-		recordPool.Put(record)
+	if rec != nil {
+		// we're done with this record, return it to the pool
+		recordPool.Put(rec)
 	}
 }
 
 func (l *Logger) flushStaged() {
-	for _, r := range l.staged {
-		for _, h := range l.handlers {
-			h.Handle(r)
+
+	// flush staged messages for this logger and all its ancestors
+
+	logger := l
+	for logger != nil {
+		if len(logger.staged) > 0 {
+			for _, rec := range logger.staged {
+				for _, h := range logger.handlers {
+					h.Handle(&rec)
+				}
+			}
+			logger.staged = logger.staged[:0]
 		}
+		logger = logger.parent
 	}
-	l.staged = l.staged[:0]
 }
 
 // CrashOpts controls how Crash operates.
@@ -190,9 +201,7 @@ func (l *Logger) Crash(err interface{}, stack []byte, opts ...CrashOpts) {
 	// panic(0x6aeee0, 0xc420101120)
 	//    (location of call of panic())
 
-	if len(l.staged) > 0 {
-		l.flushStaged()
-	}
+	l.flushStaged()
 
 	if len(opts) == 0 {
 		opts = append(opts, CrashOpts{})
@@ -251,9 +260,7 @@ func (l *Logger) Crash(err interface{}, stack []byte, opts ...CrashOpts) {
 
 // Fatal logs message with FATAL level (also does os.Exit(1)), after flushing staged messages.
 func (l *Logger) Fatal(message string, args ...interface{}) {
-	if len(l.staged) > 0 {
-		l.flushStaged()
-	}
+	l.flushStaged()
 
 	l.log(FATAL, false, message, args...)
 
@@ -263,9 +270,7 @@ func (l *Logger) Fatal(message string, args ...interface{}) {
 
 // Error logs message with ERROR level, after flushing staged messages.
 func (l *Logger) Error(message string, args ...interface{}) {
-	if len(l.staged) > 0 {
-		l.flushStaged()
-	}
+	l.flushStaged()
 	l.log(ERROR, false, message, args...)
 }
 

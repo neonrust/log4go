@@ -122,8 +122,7 @@ func Shutdown() {
 	runtime.GC()
 	syscall.Sync()
 
-	// TODO: wait for the commiters to finish (somehow)
-
+	// TODO: wait for the commiter goroutines to finish (somehow)
 	// nice synchronization there, Bob!
 	time.Sleep(100 * time.Millisecond)
 }
