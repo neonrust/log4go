@@ -55,6 +55,7 @@ func NewTemplateFormatter(format string) (*TemplateFormatter, error) {
 const (
 	tfTime = iota
 	tfTimeMilliseconds
+	tfTimeMicroseconds
 	tfName
 	tfBaseName
 	tfLevel
@@ -69,9 +70,10 @@ const (
 )
 
 // TODO: or string->func(Record) string
-var tokenToValue = map[string]int{
+var textToToken = map[string]int{
 	"time":     tfTime,
 	"timems":   tfTimeMilliseconds,
+	"timeus":   tfTimeMicroseconds,
 	"name":     tfName,
 	"basename": tfBaseName,
 	"level":    tfLevel,
@@ -153,7 +155,7 @@ func makeProcessor(colors map[string]string, patterns []PatternColor) func(m, c 
 	}
 }
 
-// SetFormat setts the formatters template string format.
+// SetFormat sets the formatters template string format.
 func (f *TemplateFormatter) SetFormat(template string) error {
 	var err error
 	if templatePtn == nil {
@@ -204,7 +206,7 @@ func (f *TemplateFormatter) SetFormat(template string) error {
 			}
 		}
 
-		value, ok := tokenToValue[token]
+		value, ok := textToToken[token]
 		if !ok {
 			return fmt.Errorf("unknown format template token: '%s'", token)
 		}
@@ -251,34 +253,46 @@ func (f *TemplateFormatter) Format(r *Record) ([]byte, error) {
 			parts = append(parts, token)
 		case int:
 			s := ""
-			switch {
-			case token == tfTime:
-				s = f.formatTime(r.Time, 1000)
-			case token == tfTime:
-				s = f.formatTime(r.Time)
-			case token == tfName:
+			switch token {
+			case tfTimeMicroseconds:
+				s = f.formatTime(r.Time, Microseconds)
+			case tfTimeMilliseconds:
+				s = f.formatTime(r.Time, Milliseconds)
+			case tfTime:
+				s = f.formatTime(r.Time, Seconds)
+			case tfName:
 				if len(r.Name) == 0 {
 					s = "root"
 				} else {
 					s = r.Name
 				}
-			case token == tfBaseName:
+			case tfBaseName:
 				if len(r.Name) == 0 {
 					s = "root"
 				} else {
-					parts := strings.Split(r.Name, "/")
-					s = parts[len(parts)-1]
+					for idx := len(r.Name) - 1; idx >= 0; idx-- {
+						if r.Name[idx] == '/' {
+							s = r.Name[idx+1:]
+							break
+						}
+					}
+					if len(s) == 0 {
+						s = r.Name
+					}
 				}
-			case token == tfLevel:
+			case tfLevel:
 				s = LevelName(r.Level)
-			case token == tfMessage:
+			case tfMessage:
 				if len(processedMessage) > 0 {
 					s = processedMessage
 				} else if len(r.Message) > 0 {
 					processedMessage = f.processMessage(r.Message, lineColor)
 					s = processedMessage
 				}
-			case token&tfFieldWidthMask > 0:
+			}
+
+			// handle padding & alignment
+			if token&tfFieldWidthMask > 0 {
 				width = ((token & tfFieldWidthMask) >> tfFieldWidthShift)
 				if (token & tfAlignRight) > 0 {
 					alignFmt = fmt.Sprintf("%%%ds", width)
@@ -294,7 +308,8 @@ func (f *TemplateFormatter) Format(r *Record) ([]byte, error) {
 						s = s[:width]
 					}
 
-					alignFmt = "" // field width used, reset it for next token
+					// reset align and width for next token
+					alignFmt = ""
 					width = 0
 				}
 
@@ -310,11 +325,26 @@ func (f *TemplateFormatter) Format(r *Record) ([]byte, error) {
 	return []byte(strings.Join(parts, "")), nil
 }
 
-func (f *TemplateFormatter) formatTime(t time.Time, resolution ...int) string {
-	ts := fmt.Sprintf("%4d-%02d-%02d %02d:%02d:%02d", t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second())
+type TimeResolution int
 
-	if len(resolution) == 1 && resolution[0] == 1000 {
-		ts = fmt.Sprintf("%s.%03d", ts, int(t.Nanosecond()/1e6))
+const (
+	Seconds TimeResolution = iota
+	Milliseconds
+	Microseconds
+)
+
+const (
+	fmtSeconds      = "%4d-%02d-%02d %02d:%02d:%02d"
+	fmtMicroseconds = "%4d-%02d-%02d %02d:%02d:%02d.%06d"
+	fmtMilliseconds = "%4d-%02d-%02d %02d:%02d:%02d.%03d"
+)
+
+func (f *TemplateFormatter) formatTime(t time.Time, resolution TimeResolution) string {
+	// duplicate some code to avoid generating multiple string objects
+	if resolution == Milliseconds {
+		return fmt.Sprintf(fmtMilliseconds, t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond()/1000000)
+	} else if resolution == Microseconds {
+		return fmt.Sprintf(fmtMicroseconds, t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond()/1000)
 	}
-	return ts
+	return fmt.Sprintf(fmtSeconds, t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second())
 }
