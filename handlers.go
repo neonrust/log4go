@@ -23,7 +23,6 @@ type StreamHandler struct {
 	formatter     Formatter
 	level         Level
 	commitChannel chan Record
-	committerStop chan struct{}
 	shutdown      bool
 }
 
@@ -31,9 +30,8 @@ type StreamHandler struct {
 func NewStreamHandler(w io.Writer) (*StreamHandler, error) {
 	handler := &StreamHandler{
 		writer:        w,
-		commitChannel: make(chan Record, 100),
-		committerStop: make(chan struct{}),
-		shutdown:      false,
+		commitChannel: make(chan Record, 1000),
+		shutdown: false,
 	}
 
 	go handler.committer()
@@ -69,7 +67,7 @@ func (h *StreamHandler) Level() Level {
 
 // Handle handles the formatted message.
 func (h *StreamHandler) Handle(rec *Record) error {
-	if !h.shutdown { // TODO: should use mutex (to avoid writing to closed channel)
+	if !h.shutdown { // avoid writing to closed channel
 		h.commitChannel <- *rec
 	}
 	return nil
@@ -78,11 +76,9 @@ func (h *StreamHandler) Handle(rec *Record) error {
 // Shutdown shuts down the handler.
 func (h *StreamHandler) Shutdown() {
 	if !h.shutdown {
-		h.shutdown = true
-		h.committerStop <- struct{}{} // unbuffered; when this returns the committer has stopped
+		h.shutdown = true // avoid writes to closed channel
 
-		close(h.committerStop)
-		close(h.commitChannel) // TODO: see Handle() or never close this channel?
+		close(h.commitChannel)
 	}
 }
 
@@ -91,25 +87,19 @@ func (h *StreamHandler) onPreWrite() {
 }
 
 func (h *StreamHandler) committer() {
-	for {
-		select {
-		case rec := <-h.commitChannel:
-			msg, err := h.Formatter().Format(&rec)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "log4go.StreamHandler: formatter error %v\n", err)
-				continue
-			}
+	for rec := range h.commitChannel {
+		msg, err := h.Formatter().Format(&rec)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "log4go.StreamHandler: formatter error %v\n", err)
+			continue
+		}
 
-			msg = append(msg, '\n')
+		msg = append(msg, '\n')
 
-			h.onPreWrite()
+		h.onPreWrite()
 
-			if _, err = h.writer.Write(msg); err != nil {
-				fmt.Fprintf(os.Stderr, "log4go.StreamHandler: write error: %v\n", err)
-			}
-
-		case <-h.committerStop:
-			break
+		if _, err = h.writer.Write(msg); err != nil {
+			fmt.Fprintf(os.Stderr, "log4go.StreamHandler: write error: %v\n", err)
 		}
 	}
 }
