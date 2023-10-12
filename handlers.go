@@ -163,7 +163,7 @@ func (h *WatchedFileHandler) onPreWrite() {
 	}
 }
 
-func (h WatchedFileHandler) fileHasMoved() bool {
+func (h *WatchedFileHandler) fileHasMoved() bool {
 	// TODO: use fsnotify to detect when the file has moved?
 
 	dev, ino := h.statFile()
@@ -199,7 +199,7 @@ func (h *WatchedFileHandler) open() error {
 	return nil
 }
 
-func (h WatchedFileHandler) statFile() (uint64, uint64) {
+func (h *WatchedFileHandler) statFile() (uint64, uint64) {
 	info, _ := os.Stat(h.filename)
 	if stat, ok := info.Sys().(*syscall.Stat_t); !ok {
 		return 0, 0
