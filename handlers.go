@@ -155,8 +155,11 @@ func (h *WatchedFileHandler) onPreWrite() {
 	if h.fileHasMoved() {
 		// just re-open, with same filename
 		h.close()
-		h.open()
-		h.writer = h.fp
+		if err := h.open(); err == nil {
+			h.writer = h.fp
+		} else {
+			fmt.Fprintf(os.Stderr, "log4go.WatchedFileHandler: failed to open moved file: %v\n", err)
+		}
 	}
 }
 
