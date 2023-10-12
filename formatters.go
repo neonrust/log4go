@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tatsujin1/log4go/color"
+	"github.com/neonrust/log4go/color"
 )
 
 // Formatter interface for formatters.
