@@ -1,3 +1,3 @@
-module github.com/tatsujin1/log4go
+module github.com/neonrust/log4go
 
 go 1.13
