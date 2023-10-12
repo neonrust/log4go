@@ -68,12 +68,12 @@ func BasicConfig(opts BasicConfigOpts) error {
 		if opts.Writer != nil {
 			defHandler, err = NewStreamHandler(opts.Writer)
 		} else if len(opts.FileName) > 0 {
-			append := opts.FileAppend == nil || opts.FileAppend.(bool)
+			appendFile := opts.FileAppend == nil || opts.FileAppend.(bool)
 
 			if opts.WatchFile {
-				defHandler, err = NewWatchedFileHandler(opts.FileName, append)
+				defHandler, err = NewWatchedFileHandler(opts.FileName, appendFile)
 			} else {
-				defHandler, err = NewFileHandler(opts.FileName, append)
+				defHandler, err = NewFileHandler(opts.FileName, appendFile)
 			}
 		} else {
 			defHandler, err = NewStreamHandler(os.Stderr)

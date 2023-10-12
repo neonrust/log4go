@@ -40,9 +40,9 @@ func NewStreamHandler(w io.Writer) (*StreamHandler, error) {
 }
 
 // NewFileHandler returns a new StreamHandler instance writing to the specified file name.
-func NewFileHandler(filename string, append bool) (*StreamHandler, error) {
+func NewFileHandler(filename string, appendFile bool) (*StreamHandler, error) {
 	flags := os.O_WRONLY | os.O_CREATE
-	if append {
+	if appendFile {
 		flags |= os.O_APPEND
 	} else {
 		flags |= os.O_TRUNC
