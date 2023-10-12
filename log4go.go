@@ -59,7 +59,6 @@ func BasicConfig(opts BasicConfigOpts) error {
 
 	if len(opts.Handlers) == 0 {
 		var defHandler Handler
-		var err error
 
 		if opts.WatchFile && opts.Writer != nil {
 			opts.WatchFile = false
