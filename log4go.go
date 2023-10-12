@@ -35,7 +35,7 @@ func init() {
 		},
 	}
 
-	loggers = make(map[string]*Logger)
+	loggers = make(map[string]*Logger, 32)
 }
 
 // BasicConfig sets up a simple configuration of the logging system.
