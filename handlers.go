@@ -58,7 +58,7 @@ func (h *StreamHandler) SetLevel(level Level) {
 	h.level = level
 }
 
-// Level returns the level previously set (or NOTSET if not set).
+// Level returns the level previously set (or INHERIT if not set).
 func (h *StreamHandler) Level() Level {
 	return h.level
 }

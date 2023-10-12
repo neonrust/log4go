@@ -50,7 +50,7 @@ func BasicConfig(opts BasicConfigOpts) error {
 
 	var err error
 
-	if opts.Level == NOTSET {
+	if opts.Level == INHERIT {
 		opts.Level = WARNING
 	}
 	if len(opts.Format) == 0 {

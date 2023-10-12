@@ -56,7 +56,7 @@ func (l *Logger) GetLogger(subName string) *Logger {
 	logger, exists := loggers[loggerName]
 	if !exists {
 		// create sub-logger
-		logger = newLogger(l, loggerName, NOTSET)
+		logger = newLogger(l, loggerName, INHERIT)
 
 		loggers[loggerName] = logger
 	}
@@ -74,7 +74,7 @@ func (l *Logger) SetLevel(lvl Level) {
 // Level returns the logger's (effective) level.
 func (l *Logger) Level() Level {
 	// as long as level is not set, ascend the ancestors
-	for l.level == NOTSET {
+	for l.level == INHERIT {
 		if l.parent != nil {
 			l = l.parent
 		} else { // no parent, use this logger's level

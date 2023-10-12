@@ -7,37 +7,36 @@ type Level int
 
 // Log levels.
 const (
-	// NOTSET log level (inherits from parent).
-	NOTSET Level = iota
+	// INHERIT inherits from parent logger.
+	INHERIT Level = iota
 	// TRACE log level.
-	TRACE = 1
+	TRACE
 	// DEBUG log level.
-	DEBUG = 2
+	DEBUG
 	// INFO log level.
-	INFO = 3
+	INFO
 	// WARNING log level.
-	WARNING = 4
+	WARNING
 	// ERROR log level.
-	ERROR = 5
+	ERROR
 	// FATAL log level - globally unrecoverable error (also does os.Exit(1)).
-	FATAL = 6
+	FATAL
 )
 
 var levelToName = map[Level]string{
-	NOTSET:  "NOTSET",
-	FATAL:   "FATAL",
-	ERROR:   "ERROR",
-	WARNING: "WARNING",
-	INFO:    "INFO",
-	DEBUG:   "DEBUG",
+	INHERIT: "INHERIT",
 	TRACE:   "TRACE",
+	DEBUG:   "DEBUG",
+	INFO:    "INFO",
+	WARNING: "WARNING",
+	ERROR:   "ERROR",
+	FATAL:   "FATAL",
 }
 
 // LevelName returns the textual representation of the level.
 func LevelName(l Level) string {
-	name, exists := levelToName[l]
-	if !exists {
-		name = fmt.Sprintf("%d", l)
+	if name, ok := levelToName[l]; ok {
+		return name
 	}
-	return name
+	return fmt.Sprintf("<Level:%d>", l)
 }
