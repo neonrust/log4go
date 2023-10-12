@@ -23,7 +23,6 @@ type StreamHandler struct {
 	formatter     Formatter
 	level         Level
 	commitChannel chan Record
-	shutdown      bool
 }
 
 // NewStreamHandler returns a new StreamHandler instance using the specified writer.
@@ -31,7 +30,6 @@ func NewStreamHandler(w io.Writer) (*StreamHandler, error) {
 	handler := &StreamHandler{
 		writer:        w,
 		commitChannel: make(chan Record, 1000),
-		shutdown: false,
 	}
 
 	go handler.committer()
@@ -67,7 +65,7 @@ func (h *StreamHandler) Level() Level {
 
 // Handle handles the formatted message.
 func (h *StreamHandler) Handle(rec *Record) error {
-	if !h.shutdown { // avoid writing to closed channel
+	if h.commitChannel != nil {
 		h.commitChannel <- *rec
 	}
 	return nil
@@ -75,10 +73,12 @@ func (h *StreamHandler) Handle(rec *Record) error {
 
 // Shutdown shuts down the handler.
 func (h *StreamHandler) Shutdown() {
-	if !h.shutdown {
-		h.shutdown = true // avoid writes to closed channel
+	if h.commitChannel != nil {
+		cc := h.commitChannel
+		// set to nil before closing
+		h.commitChannel = nil
 
-		close(h.commitChannel)
+		close(cc)
 	}
 }
 
